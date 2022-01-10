@@ -1,0 +1,3 @@
+[submodule "RegexEngine"]
+	path = RegexEngine
+	url = git@github.com:Hellio404/Regex-Engine-C-98.git
