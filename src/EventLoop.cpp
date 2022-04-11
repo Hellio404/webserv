@@ -1,5 +1,8 @@
 #include "EventLoop.hpp"
 
+namespace we 
+{
+
 unsigned long long Event::id_generator = 0;
 
 static bool time_cmp_lteq(const struct timeval& a, const struct timeval& b) 
@@ -15,12 +18,14 @@ EventLoop::~EventLoop()
 {
 }
 
-void EventLoop::add_event(Event event)
+const Event& EventLoop::add_event(Event event)
 {
-    events.insert(event);
+    std::pair<std::set<Event>::iterator, bool> ret = events.insert(event);
+    assert(ret.second);
+    return *ret.first;
 }
 
-void EventLoop::add_event(void (*handler) (EventData), EventData data, struct timeval activation_time, bool periodic)
+const Event& EventLoop::add_event(void (*handler) (EventData), EventData data, struct timeval activation_time, bool periodic)
 {
     long long ms_time = 0;
     if (periodic)
@@ -30,10 +35,10 @@ void EventLoop::add_event(void (*handler) (EventData), EventData data, struct ti
     }
     assert(ms_time >= 0);
     Event event(handler, data, activation_time, ms_time, periodic);
-    events.insert(event);
+    return add_event(event);
 }
 
-void EventLoop::add_event(void (*handler) (EventData), EventData data, long long ms, bool periodic)
+const Event& EventLoop::add_event(void (*handler) (EventData), EventData data, long long ms, bool periodic)
 {
     const struct timeval now = get_current_time();
     struct timeval activation_time;
@@ -45,7 +50,7 @@ void EventLoop::add_event(void (*handler) (EventData), EventData data, long long
         activation_time.tv_usec -= 1000000;
     }
     Event event(handler, data, activation_time, ms, periodic);
-    events.insert(event);
+    return add_event(event);
 }
 
 int EventLoop::run()
@@ -105,6 +110,11 @@ void EventLoop::reschedule_event(std::set<Event>::iterator it)
     events.insert(event);
 }
 
+void            EventLoop::remove_event(Event event)
+{
+    events.erase(event);
+}
+
 Event::Event(void (*handler) (EventData), EventData data, struct timeval activation_time, unsigned long long ms_time, bool periodic):
     handler(handler), data(data), activation_time(activation_time), ms_time(ms_time), periodic(periodic), id(id_generator++)
 {
@@ -112,5 +122,14 @@ Event::Event(void (*handler) (EventData), EventData data, struct timeval activat
 
 bool Event::operator < (const Event& other) const
 {
-    return time_cmp_lteq(activation_time, other.activation_time);
+    bool smaller_or_equal = time_cmp_lteq(activation_time, other.activation_time);
+    if (smaller_or_equal && (activation_time.tv_sec != other.activation_time.tv_sec 
+        || activation_time.tv_usec != other.activation_time.tv_usec))
+        return true;
+    else if (smaller_or_equal)
+        return id < other.id;
+    else
+        return false;
 }
+
+} // namespace we
