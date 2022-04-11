@@ -16,12 +16,6 @@
 
 namespace we
 {
-  struct strint
-  {
-    const char *str;
-    int num;
-  };
-
   class Date
   {
     private:
