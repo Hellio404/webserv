@@ -66,7 +66,7 @@ namespace we
 
     int MultiplixingKqueue::get_next_fd()
     {
-        while (this->_next_fd <= this->_max_fd)
+        while (this->_next_fd < this->_max_fd)
             return this->_event_list[this->_next_fd++].ident;
         return -1;
     }
