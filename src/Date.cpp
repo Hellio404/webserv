@@ -13,22 +13,22 @@ namespace we
     this->__data.tv_usec = (ms % 1000) * 1000;
   }
 
-  Date::Date(struct timeval *tvl): __data(*tvl)
+  Date::Date(const struct timeval *tvl): __data(*tvl)
   {
   }
 
-  Date::Date(struct timeval &tvl): __data(tvl)
+  Date::Date(const struct timeval &tvl): __data(tvl)
   {
   }
 
-  Date::Date(std::string &date_str)
+  Date::Date(const std::string &date_str)
   {
-    this->__parse_date_str(const_cast<char *>(date_str.c_str()));
+    this->__parse_date_str(date_str.c_str());
   }
 
   Date::Date(const char *date_str)
   {
-    this->__parse_date_str(const_cast<char *>(date_str));
+    this->__parse_date_str(date_str);
   }
 
   std::string Date::get_date_str() const
@@ -52,20 +52,20 @@ namespace we
     return ss.str();
   }
 
-  void Date::set_date_str(std::string &date_str)
+  void Date::set_date_str(const std::string &date_str)
   {
-    this->__parse_date_str(const_cast<char *>(date_str.c_str()));
+    this->__parse_date_str(date_str.c_str());
   }
 
   void Date::set_date_str(const char *date_str)
   {
-    this->__parse_date_str(const_cast<char *>(date_str));
+    this->__parse_date_str(date_str);
   }
 
-  void Date::__parse_date_str(char *str)
+  void Date::__parse_date_str(const char *str)
   {
     struct tm tm;
-    char *cp;
+    const char *cp;
     char str_mon[500], str_wday[500];
 
     for (cp = str; *cp == ' ' || *cp == '\t'; ++cp)
@@ -103,7 +103,7 @@ namespace we
     this->__data.tv_usec = 0;
   }
 
-  bool Date::__parse_day(char *str_wday, int *wday_ptr)
+  bool Date::__parse_day(const char *str_wday, int *wday_ptr)
   {
     static struct strint wday_tab[] = {
       {"sun", 0}, {"sunday", 0},
@@ -127,7 +127,7 @@ namespace we
     return false;
   }
 
-  bool Date::__parse_month(char *str_mon, int *mon_ptr)
+  bool Date::__parse_month(const char *str_mon, int *mon_ptr)
   {
     static struct strint mon_tab[] = {
       {"jan", 0}, {"january", 0},
@@ -261,22 +261,22 @@ namespace we
   // operator ==
   bool Date::operator==(size_t ms) const
   {
-    return this->__data.tv_sec == ms / 1000 && this->__data.tv_usec == (ms % 1000) * 1000;
+    return this->__data.tv_sec == (time_t)(ms / 1000);
   }
 
   bool Date::operator==(const Date &other) const
   {
-    return this->__data.tv_sec == other.__data.tv_sec && this->__data.tv_usec == other.__data.tv_usec;
+    return this->__data.tv_sec == other.__data.tv_sec;
   }
 
   bool Date::operator==(const struct timeval &other) const
   {
-    return this->__data.tv_sec == other.tv_sec && this->__data.tv_usec == other.tv_usec;
+    return this->__data.tv_sec == other.tv_sec;
   }
 
   bool Date::operator==(const struct timeval *other) const
   {
-    return this->__data.tv_sec == other->tv_sec && this->__data.tv_usec == other->tv_usec;
+    return this->__data.tv_sec == other->tv_sec;
   }
 
   // operator !=
@@ -303,22 +303,22 @@ namespace we
   // operator <
   bool Date::operator<(size_t ms) const
   {
-    return this->__data.tv_sec < ms / 1000 || (this->__data.tv_sec == ms / 1000 && this->__data.tv_usec < (ms % 1000) * 1000);
+    return this->__data.tv_sec < (time_t)(ms / 1000);
   }
 
   bool Date::operator<(const Date &other) const
   {
-    return this->__data.tv_sec < other.__data.tv_sec || (this->__data.tv_sec == other.__data.tv_sec && this->__data.tv_usec < other.__data.tv_usec);
+    return this->__data.tv_sec < other.__data.tv_sec;
   }
 
   bool Date::operator<(const struct timeval &other) const
   {
-    return this->__data.tv_sec < other.tv_sec || (this->__data.tv_sec == other.tv_sec && this->__data.tv_usec < other.tv_usec);
+    return this->__data.tv_sec < other.tv_sec;
   }
 
   bool Date::operator<(const struct timeval *other) const
   {
-    return this->__data.tv_sec < other->tv_sec || (this->__data.tv_sec == other->tv_sec && this->__data.tv_usec < other->tv_usec);
+    return this->__data.tv_sec < other->tv_sec;
   }
 
   // operator <=

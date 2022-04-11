@@ -27,20 +27,20 @@ namespace we
     private:
       struct timeval __data;
 
-      void __parse_date_str(char *);
-      static bool __parse_day(char *, int *);
-      static bool __parse_month(char *, int *);
+      void __parse_date_str(const char *);
+      static bool __parse_day(const char *, int *);
+      static bool __parse_month(const char *, int *);
 
     public:
       Date();
       Date(size_t);
-      Date(struct timeval *);
-      Date(struct timeval &);
-      Date(std::string &date_str);
+      Date(const struct timeval *);
+      Date(const struct timeval &);
+      Date(const std::string &date_str);
       Date(const char *date_str);
 
       std::string get_date_str() const;
-      void set_date_str(std::string &date_str);
+      void set_date_str(const std::string &date_str);
       void set_date_str(const char *date_str);
 
       // operator +

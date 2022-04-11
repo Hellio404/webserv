@@ -8,7 +8,7 @@ int main()
     we::Date date;
     std::cout << "\033[1;33m" << "Current date: \033[1;32m" << date.get_date_str() << std::endl << std::endl;
 
-    usleep(1000);
+    sleep(2);
     we::Date date2;
 
     assert((date != date2) == true);
