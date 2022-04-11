@@ -28,8 +28,6 @@ namespace we
       struct timeval __data;
 
       void __parse_date_str(const char *);
-      static bool __parse_day(const char *, int *);
-      static bool __parse_month(const char *, int *);
 
     public:
       Date();
@@ -46,49 +44,33 @@ namespace we
       // operator +
       Date operator+(size_t);
       Date operator+(const Date &);
-      Date operator+(const struct timeval &);
-      Date operator+(const struct timeval *);
 
       // operator +=
       Date &operator+=(size_t);
       Date &operator+=(const Date &);
-      Date &operator+=(const struct timeval &);
-      Date &operator+=(const struct timeval *);
 
       // operator ==
       bool operator==(size_t) const;
       bool operator==(const Date &) const;
-      bool operator==(const struct timeval &) const;
-      bool operator==(const struct timeval *) const;
 
       // operator !=
       bool operator!=(size_t) const;
       bool operator!=(const Date &) const;
-      bool operator!=(const struct timeval &) const;
-      bool operator!=(const struct timeval *) const;
 
       // operator <
       bool operator<(size_t) const;
       bool operator<(const Date &) const;
-      bool operator<(const struct timeval &) const;
-      bool operator<(const struct timeval *) const;
 
       // operator >
       bool operator>(size_t) const;
       bool operator>(const Date &) const;
-      bool operator>(const struct timeval &) const;
-      bool operator>(const struct timeval *) const;
 
       // operator <=
       bool operator<=(size_t) const;
       bool operator<=(const Date &) const;
-      bool operator<=(const struct timeval &) const;
-      bool operator<=(const struct timeval *) const;
 
       // operator >=
       bool operator>=(size_t) const;
       bool operator>=(const Date &) const;
-      bool operator>=(const struct timeval &) const;
-      bool operator>=(const struct timeval *) const;
   };
 }

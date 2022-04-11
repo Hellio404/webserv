@@ -58,7 +58,7 @@ int main()
     {
       failed = true;
     }
-    assert(failed == false);
+    assert(failed == true);
     std::cout << "✅ \033[1;32m Test 5 passed!\033[0m ✅" << std::endl;
   }
   {
@@ -73,5 +73,9 @@ int main()
     assert((date += tv).get_date_str().compare("Sun, 06 Nov 1994 08:49:43 GMT") == 0);
     assert((date += &tv).get_date_str().compare("Sun, 06 Nov 1994 08:49:46 GMT") == 0);
     std::cout << "✅ \033[1;32m Test 6 passed!\033[0m ✅" << std::endl;
+  }
+  {
+    we::Date date("Sun, 06 Nov 1900 08:49:37 GMT");
+    std::cout << "✅ \033[1;32m Test 7 passed!\033[0m ✅" << std::endl;
   }
 }
