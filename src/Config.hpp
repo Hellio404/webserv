@@ -1,12 +1,31 @@
 #pragma once
 #include <vector>
+#include <map>
 #include <string>
 #include <sys/socket.h>
+#include <netinet/in.h>
+
 namespace we
 {
  /*
     + ADD LOGGING
  */
+    class ComparSockAddr: public std::binary_function<sockaddr, sockaddr, bool>
+    {
+    public:
+        bool operator()(const struct sockaddr& lhs, const struct sockaddr& rhs) const
+        {
+            const struct sockaddr_in* lhs_in = reinterpret_cast<const struct sockaddr_in*>(&lhs);
+            const struct sockaddr_in* rhs_in = reinterpret_cast<const struct sockaddr_in*>(&rhs);
+            return (lhs_in->sin_addr.s_addr < rhs_in->sin_addr.s_addr || 
+                    (lhs_in->sin_addr.s_addr == rhs_in->sin_addr.s_addr && 
+                    lhs_in->sin_port < rhs_in->sin_port)
+                    );
+
+        }
+    };
+
+
     class LocationBlock
     {
 
@@ -42,6 +61,7 @@ namespace we
         std::vector<struct sockaddr_in>         server_addrs;
         std::vector<int>                        server_socks;
 
+        // ms to wait when receiving headers from client before timeout
         long long                               client_header_timeout;
         long long                               client_header_buffer_size;
         long long                               client_max_header_size;
@@ -56,6 +76,7 @@ namespace we
         long long                               lingering_close_timeout;
 
         std::vector<LocationBlock>              locations;
+        const LocationBlock*                    get_location(const std::string& uri) const;
 
     };
 
@@ -75,9 +96,12 @@ namespace we
 
     public:
 
-        MultiplixingType    multiplex_type;
+        MultiplixingType                                                multiplex_type;
         
-        std::vector<ServerBlock>    server_blocks;
+        std::map<sockaddr, std::vector<ServerBlock>, ComparSockAddr>    server_blocks;
+        std::map<int, sockaddr>                                         server_socks;
+
+        const ServerBlock*        get_server_block(int socket, const std::string &host) const;
 
     };
 
