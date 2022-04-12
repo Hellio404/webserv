@@ -1,3 +1,6 @@
+// Different implementations of multiplexing using select(), poll() ...
+// the A AMultiplexing is define the mandatory methods to implement
+
 #pragma once
 #include <sys/time.h>
 #include <unistd.h>
@@ -38,7 +41,7 @@ namespace we
         Error
     };
 
-    class IMultiplexing
+    class AMultiplexing
     {
     protected:
         std::map<int, Connection *> _fds_data;
@@ -49,11 +52,11 @@ namespace we
         virtual int wait(long long) = 0;
         virtual int get_next_fd() = 0;
         virtual WatchType is_set(int) const = 0;
-        virtual ~IMultiplexing() {};
+        virtual ~AMultiplexing() {};
     };
 
 #if HAVE_KQUEUE
-    class MultiplixingKqueue: public IMultiplexing
+    class MultiplixingKqueue: public AMultiplexing
     {
         int             _max_fd; // nbr of fd in the kqueue event list
         int             _next_fd; // cursor on the kqueue event list
@@ -76,7 +79,7 @@ namespace we
 #endif
 
 #if HAVE_POLL
-    class MultiplixingPoll: public IMultiplexing
+    class MultiplixingPoll: public AMultiplexing
     {
     public:
         MultiplixingPoll();
@@ -92,7 +95,7 @@ namespace we
 #endif
 
 #if HAVE_SELECT
-    class MultiplixingSelect: public IMultiplexing
+    class MultiplixingSelect: public AMultiplexing
     {
         fd_set  _read_set;
         fd_set  _write_set;
