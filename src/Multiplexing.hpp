@@ -51,7 +51,7 @@ namespace we
         virtual int wait() = 0 ;
         virtual int wait(long long) = 0;
         virtual int get_next_fd() = 0;
-        virtual WatchType is_set(int) const = 0;
+        virtual Connection *get_connection(int) = 0;
         virtual ~AMultiplexing() {};
     };
 
@@ -74,7 +74,7 @@ namespace we
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
+        Connection *get_connection(int);
     };
 #endif
 
@@ -90,7 +90,7 @@ namespace we
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
+        Connection *get_connection(int);
     };
 #endif
 
@@ -113,7 +113,7 @@ namespace we
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
+        Connection *get_connection(int);
     };
 #endif
 }

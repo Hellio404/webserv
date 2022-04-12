@@ -71,10 +71,9 @@ namespace we
         return -1;
     }
 
-    WatchType MultiplixingKqueue::is_set(int fd) const
+    Connection *MultiplixingKqueue::get_connection(int fd)
     {
-        // TODO: check if the fd is valid
-        throw std::runtime_error("Not implemented");
+        return this->_fds_data[fd];
     }
 
     void MultiplixingKqueue::updateEvent(int ident, short filter, u_short flags)
@@ -157,13 +156,9 @@ namespace we
         return -1;
     }
 
-    WatchType MultiplixingSelect::is_set(int fd) const
+    Connection *MultiplixingSelect::get_connection(int fd)
     {
-        if (FD_ISSET(fd, &this->_tmp_read_set))
-            return Read;
-        if (FD_ISSET(fd, &this->_tmp_write_set))
-            return Write;
-        return None;
+        return this->_fds_data[fd];
     }
 #endif
 }
