@@ -36,6 +36,7 @@ namespace we
         const LocationBlock*                                                location;
         
         char                                                                *client_headers_buffer;
+        std::string                                                         client_headers;
         char                                                                *client_body_buffer;
 
         std::istream                                                        requested_file;
@@ -48,6 +49,9 @@ namespace we
         std::multimap<std::string, std::string, LessCaseInsensitive>        res_headers;
 
         Connection(int, EventLoop&, const Config&, AMultiplexing&);
+        bool    handle_client();
+    private:
+        char*    is_finished_header();
     };
 
     

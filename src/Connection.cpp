@@ -36,4 +36,50 @@ namespace we
         this->status = Read;
         this->client_headers_buffer = new char[this->config.client_header_buffer_size];
     }
+
+    char*   Connection::is_finished_header()
+    {
+        char *start = this->client_headers_buffer;
+        bool last_is_lf = false;
+        bool last_is_cr = false;
+        while (*start)
+        {
+            if (*start == '\n')
+            {
+                if (last_is_lf)
+                    break ;
+                last_is_lf = true;
+                last_is_cr = false;
+            }
+            else if (*start != '\r' || last_is_cr)
+            {
+                last_is_lf = false;
+                last_is_cr = '\r' == *start;
+            }
+            else if (*start == '\r')
+                last_is_cr = true;
+            start++;
+        }
+       
+        return *start == '\n' ? start + 1 : NULL;
+    }
+
+    bool Connection::handle_client()
+    {
+        ssize_t last_read = recv(this->client_sock, this->client_headers_buffer, this->config.client_header_buffer_size, 0);
+        // TODO: handle last_read <= 0
+        this->client_headers_buffer[last_read] = '\0';
+        char *end = this->is_finished_header();
+        if (end)
+        {
+            this->client_headers.insert(this->client_headers.end(), this->client_headers_buffer, end);
+            // TODO: check if client_headers.size() > config.client_header_max_size
+            strcpy(this->client_headers_buffer, end);
+        }
+        else
+        {
+            this->client_headers += this->client_headers_buffer;
+            // TODO: check if client_headers.size() > config.client_header_max_size
+        }
+    }
 }
