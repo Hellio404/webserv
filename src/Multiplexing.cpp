@@ -2,6 +2,15 @@
 
 namespace we
 {
+    AMultiplexing::~AMultiplexing()
+    {
+    }
+
+    Connection *AMultiplexing::get_connection(int fd)
+    {
+        return this->_fds_data[fd];
+    }
+
 #if HAVE_KQUEUE
     MultiplixingKqueue::MultiplixingKqueue()
     {
@@ -69,11 +78,6 @@ namespace we
         while (this->_next_fd < this->_max_fd)
             return this->_event_list[this->_next_fd++].ident;
         return -1;
-    }
-
-    Connection *MultiplixingKqueue::get_connection(int fd)
-    {
-        return this->_fds_data[fd];
     }
 
     void MultiplixingKqueue::updateEvent(int ident, short filter, u_short flags)
@@ -154,11 +158,6 @@ namespace we
                 this->_next_fd++;
         }
         return -1;
-    }
-
-    Connection *MultiplixingSelect::get_connection(int fd)
-    {
-        return this->_fds_data[fd];
     }
 #endif
 }
