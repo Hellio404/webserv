@@ -4,17 +4,13 @@
 # include "Config.hpp"
 # include <istream>
 # include <ostream>
+# include "Multiplexing.hpp"
+# include "Utils.hpp"
+# include <stdexcept>
+
 namespace we
 {
-    class ComparLessCaseInsensitive: public std::binary_function<std::string, std::string, bool>
-    {
-    public:
-        bool operator()(const std::string& lhs, const std::string& rhs) const
-        {
-            return (lhs.size() < rhs.size() || (lhs.size() == rhs.size() &&
-                    strcasecmp(lhs.c_str(), rhs.c_str()) < 0));
-        }
-    };
+    class AMultiplexing;
 
     class Connection {
     public:
@@ -24,18 +20,21 @@ namespace we
             Idle,
             Timeout
         };
-
         int                                                                 connected_socket;
         int                                                                 client_sock;
         struct sockaddr_storage                                             client_addr;
         socklen_t                                                           client_addr_len;
+    
+        const Config                                                        &config;
+        AMultiplexing                                                       &multiplexing;
         EventLoop                                                           &loop;
-        Event                                                               *client_timeout_event;
+        const Event                                                         *client_timeout_event;
+
         Status                                                              status;
+
         const ServerBlock*                                                  server;
         const LocationBlock*                                                location;
-        const Config                                                        &config;
-
+        
         char                                                                *client_headers_buffer;
         char                                                                *client_body_buffer;
 
@@ -45,10 +44,13 @@ namespace we
         std::ostream                                                        body_file;
 
         std::string                                                         start_line;
-        std::map<std::string, std::string, ComparLessCaseInsensitive>       req_headers;
-        std::multimap<std::string, std::string, ComparLessCaseInsensitive>  res_headers;
+        std::map<std::string, std::string, LessCaseInsensitive>             req_headers;
+        std::multimap<std::string, std::string, LessCaseInsensitive>        res_headers;
 
-        Connection(int, EventLoop&, const Config&);
+        Connection(int, EventLoop&, const Config&, AMultiplexing&);
     };
+
+    
+
 }
 
