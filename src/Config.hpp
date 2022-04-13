@@ -85,7 +85,7 @@ namespace we
 
 
     public:
-        enum MultiplixingType
+        enum MultiplexingType
         {
             MulNone,
             MulSelect,
@@ -96,7 +96,7 @@ namespace we
 
     public:
 
-        MultiplixingType                                                multiplex_type;
+        MultiplexingType                                                multiplex_type;
         
         std::map<sockaddr, std::vector<ServerBlock>, ComparSockAddr>    server_blocks;
         std::map<int, sockaddr>                                         server_socks;

@@ -51,12 +51,12 @@ namespace we
         virtual int wait() = 0 ;
         virtual int wait(long long) = 0;
         virtual int get_next_fd() = 0;
-        virtual WatchType is_set(int) const = 0;
-        virtual ~AMultiplexing() {};
+        virtual ~AMultiplexing();
+        Connection *get_connection(int);
     };
 
 #if HAVE_KQUEUE
-    class MultiplixingKqueue: public AMultiplexing
+    class MultiplexingKqueue: public AMultiplexing
     {
         int             _max_fd; // nbr of fd in the kqueue event list
         int             _next_fd; // cursor on the kqueue event list
@@ -66,36 +66,34 @@ namespace we
         void updateEvent(int ident, short filter, u_short flags);
 
     public:
-        MultiplixingKqueue();
-        ~MultiplixingKqueue();
+        MultiplexingKqueue();
+        ~MultiplexingKqueue();
 
         void add(int, Connection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
     };
 #endif
 
 #if HAVE_POLL
-    class MultiplixingPoll: public AMultiplexing
+    class MultiplexingPoll: public AMultiplexing
     {
     public:
-        MultiplixingPoll();
-        ~MultiplixingPoll();
+        MultiplexingPoll();
+        ~MultiplexingPoll();
 
         void add(int, Connection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
     };
 #endif
 
 #if HAVE_SELECT
-    class MultiplixingSelect: public AMultiplexing
+    class MultiplexingSelect: public AMultiplexing
     {
         fd_set  _read_set;
         fd_set  _write_set;
@@ -105,15 +103,14 @@ namespace we
         int     _next_fd;
 
     public:
-        MultiplixingSelect();
-        ~MultiplixingSelect();
+        MultiplexingSelect();
+        ~MultiplexingSelect();
 
         void add(int, Connection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
         int get_next_fd();
-        WatchType is_set(int) const;
     };
 #endif
 }
