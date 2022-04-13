@@ -42,6 +42,8 @@ namespace we
         case Write:
             this->updateEvent(fd, EVFILT_WRITE, EV_ADD | EV_ENABLE);
             break;
+        default:
+            assert(false);
         }
 
         this->_fds_data[fd] = data;
@@ -114,6 +116,8 @@ namespace we
         case Write:
             FD_SET(fd, &this->_write_set);
             break;
+        default:
+            assert(false);
         }
         if (fd > this->_max_fd)
             this->_max_fd = fd;
