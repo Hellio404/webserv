@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <vector>
 #include <map>
+#include <stdexcept>
 
 #include "Connection.hpp"
 
