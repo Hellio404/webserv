@@ -51,8 +51,8 @@ namespace we
         virtual int wait() = 0 ;
         virtual int wait(long long) = 0;
         virtual int get_next_fd() = 0;
-        virtual Connection *get_connection(int);
         virtual ~AMultiplexing();
+        Connection *get_connection(int);
     };
 
 #if HAVE_KQUEUE
