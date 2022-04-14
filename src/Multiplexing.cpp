@@ -91,6 +91,86 @@ namespace we
     }
 #endif
 
+#if HAVE_POLL
+    MultiplexingPoll::MultiplexingPoll()
+    {
+    }
+
+    MultiplexingPoll::~MultiplexingPoll()
+    {
+    }
+
+    void MultiplexingPoll::add(int fd, Connection* data, WatchType type)
+    {
+        assert(type != None && type != Error);
+
+        if (fd < 0)
+            return;
+
+        struct pollfd tmp;
+        memset(&tmp, 0, sizeof(tmp));
+        tmp.fd = fd;
+        switch (type)
+        {
+        case Read:
+            tmp.events = POLLIN;
+            break;
+        case Write:
+            tmp.events = POLLOUT;
+            break;
+        default:
+            assert(false);
+        }
+        this->_fd_list.push_back(tmp);
+        this->_fds_data[fd] = data;
+    }
+
+    void MultiplexingPoll::remove(int fd)
+    {
+        std::vector<struct pollfd>::iterator it = this->_fd_list.begin();
+        for (; it != this->_fd_list.end(); ++it)
+        {
+            if ((*it).fd == fd)
+            {
+                this->_fd_list.erase(it);
+                break ;
+            }
+        }
+    }
+
+    int MultiplexingPoll::wait()
+    {
+        this->_next_fd = 0;
+        return poll(this->_fd_list.data(), this->_fd_list.size(), -1);
+    }
+
+    /*
+    *** If ms_wait is equale to -1 it would mimic the behavior of
+    *** wait() "without args" since poll takes int as 3rd argument
+    *** and -1 is basically no timeout (If the value of timeout is -1, the poll
+    *** blocks indefinitely). For clarification 0 ms_wait means wait for 0 seconds aka
+    *** don't wait at all
+    */
+    int MultiplexingPoll::wait(long long ms_wait)
+    {
+        this->_next_fd = 0;
+        return poll(this->_fd_list.data(), this->_fd_list.size(), ms_wait);
+    }
+
+    int MultiplexingPoll::get_next_fd()
+    {
+        while (this->_next_fd < this->_fd_list.size())
+        {
+            if (this->_fd_list[this->_next_fd].revents & POLLIN ||
+                this->_fd_list[this->_next_fd].revents & POLLOUT)
+                return this->_next_fd++;
+            else
+                this->_next_fd++;
+        }
+        return -1;
+    }
+#endif
+
 #if HAVE_SELECT
     MultiplexingSelect::MultiplexingSelect()
     {
