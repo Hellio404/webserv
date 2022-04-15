@@ -163,7 +163,7 @@ namespace we
         {
             if (this->_fd_list[this->_next_fd].revents & POLLIN ||
                 this->_fd_list[this->_next_fd].revents & POLLOUT)
-                return this->_next_fd++;
+                return this->_fd_list[this->_next_fd++].fd;
             else
                 this->_next_fd++;
         }
