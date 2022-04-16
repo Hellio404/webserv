@@ -1,19 +1,23 @@
 #pragma once
-# include "EventLoop.hpp"
-# include <sys/socket.h>
-# include "Config.hpp"
-# include <istream>
-# include <ostream>
-# include "Multiplexing.hpp"
-# include "Utils.hpp"
-# include <stdexcept>
-# include <iostream>
+
+#include "Multiplexing.hpp"
+#include "FileUtility.hpp"
+#include "EventLoop.hpp"
+#include "Config.hpp"
+#include "Utils.hpp"
+
+#include <sys/socket.h>
+#include <stdexcept>
+#include <iostream>
+#include <istream>
+#include <ostream>
 
 namespace we
 {
     class AMultiplexing;
 
-    class Connection {
+    class Connection
+    {
     public:
         enum Status {
             Read,
@@ -28,7 +32,6 @@ namespace we
 
         // remaining data after end of headers
         std::string                                                         client_remaining_data;
-
 
         int                                                                 connected_socket;
         int                                                                 client_sock;
@@ -60,31 +63,26 @@ namespace we
         std::multimap<std::string, std::string, LessCaseInsensitive>        res_headers;
 
         Connection(int, EventLoop&, const Config&, AMultiplexing&);
-        void    handle_connection();
+        void        handle_connection();
 
     private:
         typedef std::map<std::string, std::string, LessCaseInsensitive>     map_type;
 
     private:
-        void Connection::check_potential_body(const map_type &);
-        bool    is_protocol_supported(const std::string &);
-        bool    is_method_supported(const std::string &);
-        bool    is_crlf(std::string::const_iterator, std::string::const_iterator);
-        bool    is_allowed_header_char(char);
-        void    check_for_absolute_uri();
+        void        check_potential_body(const map_type &);
+        bool        is_protocol_supported(const std::string &);
+        bool        is_method_supported(const std::string &);
+        bool        is_crlf(std::string::const_iterator, std::string::const_iterator);
+        bool        is_allowed_header_char(char);
+        void        check_for_absolute_uri();
 
-        void    parse_request(const std::string &);
-        bool    parse_path(const std::string &);
+        void        parse_request(const std::string &);
+        bool        parse_path(const std::string &);
         std::string parse_absolute_path(const std::string &);
-        char *skip_crlf(char *ptr, char*end);
-        bool end_of_headers(std::string::const_iterator start, std::string::const_iterator end);
-        void print_headers();
+        char        *skip_crlf(char *ptr, char*end);
+        bool        end_of_headers(std::string::const_iterator start, std::string::const_iterator end);
+        void        print_headers();
 
-
-
+        bool        process_file_for_response();
     };
-
-    
-
 }
-
