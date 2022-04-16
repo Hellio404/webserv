@@ -60,11 +60,7 @@ namespace we
         std::string                             server_name;
         std::vector<struct sockaddr_in>         server_addrs;
         std::vector<int>                        server_socks;
-
-        // ms to wait when receiving headers from client before timeout
-        long long                               client_header_timeout;
-        long long                               client_header_buffer_size;
-        long long                               client_max_header_size;
+        
 
         long long                               server_send_timeout;
         long long                               server_body_buffer_size;
@@ -98,6 +94,10 @@ namespace we
 
         MultiplexingType                                                multiplex_type;
         
+        long long                                                       client_header_timeout;
+        long long                                                       client_header_buffer_size;
+        long long                                                       client_max_header_size;
+
         std::map<sockaddr, std::vector<ServerBlock>, ComparSockAddr>    server_blocks;
         std::map<int, sockaddr>                                         server_socks;
 

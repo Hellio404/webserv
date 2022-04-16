@@ -34,19 +34,21 @@ namespace we
 {
     class Connection;
 
-    enum WatchType
-    {
-        None,
-        Read,
-        Write,
-        Error
-    };
 
     class AMultiplexing
     {
     protected:
         std::map<int, Connection *> _fds_data;
     public:
+
+        enum WatchType
+        {
+            None,
+            Read,
+            Write,
+            Error
+        };
+        
         virtual void add(int, Connection*, WatchType) = 0;
         virtual void remove(int) = 0;
         virtual int wait() = 0 ;
