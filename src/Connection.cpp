@@ -11,6 +11,7 @@ namespace we
         this->client_headers_buffer = NULL;
         this->client_body_buffer = NULL;
         this->client_started_header = false;
+        this->is_body_expected = false;
 
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
 
@@ -34,19 +35,38 @@ namespace we
 
     bool Connection::end_of_headers(std::string::const_iterator start, std::string::const_iterator end)
     {
+        size_t  to_skip = 0;
         while (start != end)
         {
             if (*start == '\r' && *(start + 1)   == '\n' && *(start + 2) == '\r' && *(start + 3) == '\n')
-                return true;
+            {
+                to_skip = 4;
+                break ;
+            }
             if (*start == '\r' && *(start + 1) == '\n' && *(start + 2) == '\n')
-                return true;
+            {
+                to_skip = 3;
+                break ;
+            }
             if (*start == '\n' && *(start + 1) == '\r' && *(start + 2) == '\n')
-                return true;
+            {
+                to_skip = 3;
+                break ;
+            }
             if (*start == '\n' && *(start + 1) == '\n')
-                return true;
+            {
+                to_skip = 2;
+                break ;
+            }
             ++start;
         }
         // TODO: move the rest of the data to the body string
+        if (to_skip > 0)
+        {
+            this->client_remaining_data = std::string(start + to_skip, end);
+            this->client_headers.erase(start + to_skip, end);
+            return true;
+        }
         return false;
     }
 
@@ -63,6 +83,8 @@ namespace we
     {
         if (this->status == Connection::Read)
         {
+            // todo check if client_remaining_data is not empty then read from it instead/
+            // of recv (Keep-Alive)
             ssize_t recv_ret = recv(this->client_sock, this->client_headers_buffer, 4096, 0);
             std::cerr << "recv_ret: " << recv_ret << std::endl;
             // TODO: handle error
@@ -76,6 +98,12 @@ namespace we
             if (end_of_headers(start, this->client_headers.end()))
             {
                 this->parse_request(this->client_headers);
+                if (!this->parse_path(this->req_headers["@path"]))
+                {
+                    //TODO: handle error
+                    std::cerr << "Bad Request" << std::endl;
+                }
+                this->check_potential_body(this->req_headers);
                 this->client_headers.clear();
                 this->status = Connection::Write;
                 this->multiplexing.remove(this->client_sock);
@@ -86,7 +114,19 @@ namespace we
 
     }
 
-    
+    void Connection::check_potential_body(const map_type & val)
+    {
+        if (val.find("Content-Length") != val.end())
+            this->is_body_expected = true;
+        map_type::const_iterator    tmp = val.find("Transfer-Encoding");
+        if (tmp != val.end())
+        {
+            this->is_body_chunked = !strcasecmp("chunked", tmp->second.c_str());
+            // TODO: if not chuncked -> error not implimented.
+            this->is_body_expected = true;
+        }
+
+    }
 
     bool Connection::is_crlf(std::string::const_iterator it, std::string::const_iterator end)
     {
@@ -265,4 +305,3 @@ namespace we
     }
 
 }
-
