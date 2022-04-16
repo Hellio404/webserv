@@ -1,9 +1,10 @@
 #pragma once
+
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <string>
 #include <vector>
 #include <map>
-#include <string>
-#include <sys/socket.h>
-#include <netinet/in.h>
 
 namespace we
 {
@@ -17,24 +18,25 @@ namespace we
         {
             const struct sockaddr_in* lhs_in = reinterpret_cast<const struct sockaddr_in*>(&lhs);
             const struct sockaddr_in* rhs_in = reinterpret_cast<const struct sockaddr_in*>(&rhs);
-            return (lhs_in->sin_addr.s_addr < rhs_in->sin_addr.s_addr || 
-                    (lhs_in->sin_addr.s_addr == rhs_in->sin_addr.s_addr && 
-                    lhs_in->sin_port < rhs_in->sin_port)
-                    );
 
+            return (lhs_in->sin_addr.s_addr < rhs_in->sin_addr.s_addr ||
+                    (lhs_in->sin_addr.s_addr == rhs_in->sin_addr.s_addr && 
+                        lhs_in->sin_port < rhs_in->sin_port)
+                    );
         }
     };
 
-
     class LocationBlock
     {
-
-        struct AllowedMethods {
+    private:
+        struct AllowedMethods
+        {
             int get: 2;
             int post: 2;
             int put: 2;
             int head: 2;
         };
+
     public:
         std::string                 pattern;
         long long                   client_body_timeout;
@@ -55,12 +57,10 @@ namespace we
 
     class ServerBlock
     {
-           
     public:
         std::string                             server_name;
         std::vector<struct sockaddr_in>         server_addrs;
         std::vector<int>                        server_socks;
-        
 
         long long                               server_send_timeout;
         long long                               server_body_buffer_size;
@@ -73,13 +73,10 @@ namespace we
 
         std::vector<LocationBlock>              locations;
         const LocationBlock*                    get_location(const std::string& uri) const;
-
     };
 
     class Config
     {
-
-
     public:
         enum MultiplexingType
         {
@@ -91,9 +88,8 @@ namespace we
         };
 
     public:
-
         MultiplexingType                                                multiplex_type;
-        
+
         long long                                                       client_header_timeout;
         long long                                                       client_header_buffer_size;
         long long                                                       client_max_header_size;
@@ -102,7 +98,6 @@ namespace we
         std::map<int, sockaddr>                                         server_socks;
 
         const ServerBlock*        get_server_block(int socket, const std::string &host) const;
-
     };
 
 } // namespace we
