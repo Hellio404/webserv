@@ -325,8 +325,7 @@ namespace we
         // TODO: if no location block matches, return 404
         assert(this->location != NULL);
 
-        std::string filepath = get_file_fullpath(this->location->root, this->req_headers["@expanded_url"],
-            this->location->pattern.size());
+        std::string filepath = get_file_fullpath(this->location->root, this->req_headers["@expanded_url"]);
         switch (check_file_validity(filepath))
         {
         case FileStatus::FILE_OK:

@@ -21,7 +21,6 @@ namespace we
     };
 
     FileStatus::Type    check_file_validity(const std::string &);
+    std::string         get_file_fullpath(const std::string &, const std::string &);
     bool                check_path_by_location(const std::string &, const LocationBlock &);
-    ssize_t             location_filename_cmp(const std::string &, const std::string &);
-    std::string         get_file_fullpath(const std::string &, const std::string &, ssize_t);
 }
