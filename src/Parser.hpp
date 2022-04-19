@@ -1,11 +1,14 @@
 #pragma once
+
+#include "Config.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <vector>
 #include <string>
 #include <stack>
 #include <map>
-#include <fstream>
-#include <iostream>
-#include <cassert>
-#include "Config.hpp"
 // TODO: remove c++11 to_string
 namespace we
 {
@@ -21,8 +24,8 @@ namespace we
         unsigned int    allow_in_location:1;
     };
 
-    struct directive_data {
-
+    struct directive_data
+    {
         std::vector<std::string> args;
         std::string              path;
         unsigned int             line;
@@ -54,9 +57,9 @@ namespace we
         };
         unsigned int                    file_level;
         std::fstream*                   file;
-        std::vector <directive_block>   blocks;
         std::stack<file_info*>          files;
     public:
+        std::vector <directive_block>   blocks;
         Parser(std::string const &path);
         ~Parser();
         unsigned int    level; // debug

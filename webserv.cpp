@@ -13,6 +13,8 @@ int main()
     we::AMultiplexing *multiplexing = new we::MultiplexingSelect();
     we::EventLoop eventLoop;
 
+    we::load_config("./conf/webserv.conf", config);
+
     int listen_fd, optval = 1;
     struct sockaddr_in srv_addr;
     srv_addr.sin_family = AF_INET; // IPv4
