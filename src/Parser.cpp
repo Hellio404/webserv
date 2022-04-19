@@ -34,6 +34,7 @@ namespace we
         f = new std::fstream(path, std::fstream::in);
         if (!f->is_open())
         {
+            delete f;
             throw std::runtime_error("Can't open file " + path);
         }
     }
