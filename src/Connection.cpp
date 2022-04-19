@@ -304,4 +304,49 @@ namespace we
         return true;
     }
 
+    // This function is called when the request is a GET or HEAD request
+    // It will check if the requested file exists.
+    bool    Connection::process_file_for_response()
+    {
+        // This function should be called after the request is parsed and the server block is initialized
+        assert(this->server != NULL);
+        // Loop through the list of locations to find the longest match for the requested file
+        for (std::vector<LocationBlock>::const_iterator it = this->server->locations.begin();
+            it != this->server->locations.end(); ++it)
+        {
+            if (check_path_by_location(this->req_headers["@expanded_url"], *it))
+            {
+                if (this->location == NULL ||
+                    this->location->pattern.size() < it->pattern.size())
+                    this->location = &(*it);
+            }
+        }
+
+        // TODO: if no location block matches, return 404
+        assert(this->location != NULL);
+
+        std::string filepath = get_file_fullpath(this->location->root, this->req_headers["@expanded_url"]);
+        switch (check_file_validity(filepath))
+        {
+        case FileStatus::FILE_OK:
+            break;
+        case FileStatus::FILE_NOT_FOUND:
+            // TODO: Send "404 Not Found"
+        case FileStatus::FILE_NOT_REGULAR:
+            // TODO: Send "404 Not Found"
+            // FIXME: Nginx does not send "404 Not Found" but rather
+            // It follows the symlink and sends the file pointed to
+            // by the symlink if it exists inside the working directory.
+        case FileStatus::FILE_NOT_READABLE:
+            // TODO: Send "404 Not Found"
+        case FileStatus::FILE_IS_DIRECTORY:
+            // TODO: Send "403 Forbidden" if autoindex is disabled
+            // otherwise send "200 OK" and send the directory listing
+        default:
+            return false;
+        }
+
+        this->requested_filepath = filepath;
+        return true;
+    }
 }
