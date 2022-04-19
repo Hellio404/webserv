@@ -29,7 +29,7 @@ namespace we
 
     bool        check_path_by_location(const std::string &path, const LocationBlock &location)
     {
-        if (strcasecmp(path.c_str(), location.pattern.c_str()) >= 0)
+        if (strncasecmp(path.c_str(), location.pattern.c_str(), location.pattern.size()) == 0)
             return true;
         return false;
     }
