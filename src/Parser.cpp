@@ -19,58 +19,87 @@ namespace we
         dir.allow_in_location = allow_in_location;
     }
 
-    Parser::Parser(std::string const &path) : file(path, std::ios::in), blocks(1)
+    Parser::Parser(std::string const &path) :  blocks(1)
     {
-        if (!file.is_open())
+        add_file(path);
+
+        blocks[0].name = "root";
+        current_block = 0;
+        // level = 0;
+        file_level = 0;
+        current_directive = 0;
+    }
+    Parser::file_info::file_info(std::string const& path): path(path), line_number(1), column_number(1)
+    {
+        f = new std::fstream(path, std::fstream::in);
+        if (!f->is_open())
         {
             throw std::runtime_error("Can't open file " + path);
         }
-        blocks[0].name = "root";
-        current_block = 0;
-        line_number = 1;
-        column_number = 1;
-        // level = 0;
-        current_directive = 0;
     }
+
+    Parser::file_info::~file_info()
+    {
+        f->close();
+        delete f;
+    }
+    
+    void    Parser::add_file(std::string const &path)
+    {
+        file_info *f = new file_info(path);
+        files.push(f);
+        file = files.top()->f;
+    }
+
+    void    Parser::remove_file()
+    {
+        file_info *f = files.top();
+        files.pop();
+        delete f;
+        if (files.empty())
+            throw std::runtime_error("Can't remove file: no file left");
+        file = files.top()->f;
+    }
+
 
     char Parser::next()
     {
-        if (file.peek() == '\n')
+        if (file->peek() == '\n')
         {
-            line_number++;
-            column_number = 1;
+            files.top()->line_number++;
+            files.top()->column_number = 1;
         }
         else
-            column_number++;
-        return file.get();
+            files.top()->column_number++;
+        return file->get();
     }
 
     char Parser::peek()
     {
-        return file.peek();
+        return file->peek();
     }
 
     char Parser::consume(char c)
     {
-        if (c == 0 && !file.eof()) // this is to expecte end of file
+        if (c == 0 && !file->eof()) // this is to expecte end of file
             unexpected();
         else if (c == 0)
             return 0;
 
-        if (file.eof() || file.peek() != c)
+        if (file->eof() || file->peek() != c)
             expected(c);
         return this->next();
     }
 
     std::string Parser::file_pos()
     {
-        return "line " + std::to_string(line_number) + " column " + std::to_string(column_number);
+        return files.top()->path + " line " + std::to_string(files.top()->line_number) + ":" + std::to_string(files.top()->column_number);
     }
 
     void Parser::expected(char c)
     {
         std::string ex = c == 0 ? "end of file" : "'" + std::string(1, c) + "'";
-        std::string ux = file.eof() ? "end of file" : "'" + std::string(1, file.peek()) + "'";
+        std::string ux = file->eof() ? "end of file" : "'" + std::string(1, file->peek()) + "'";
         throw std::runtime_error(
             "Expected " + ex + " but got " + ux +
             " at " + file_pos());
@@ -78,7 +107,7 @@ namespace we
 
     void Parser::unexpected()
     {
-        std::string ux = file.eof() ? "end of file" : "'" + std::string(1, file.peek()) + "'";
+        std::string ux = file->eof() ? "end of file" : "'" + std::string(1, file->peek()) + "'";
         throw std::runtime_error(
             "Unexpected " + ux +
             " at " + file_pos());
@@ -86,15 +115,15 @@ namespace we
 
     void Parser::skip_comments()
     {
-        if (file.eof() || peek() != '#')
+        if (file->eof() || peek() != '#')
             return;
-        while (!file.eof() && peek() != '\n')
+        while (!file->eof() && peek() != '\n')
             this->next();
     }
 
     void Parser::next_token()
     {
-        while (!file.eof() && (peek() == ' ' || peek() == '\t' || peek() == '#' || peek() == '\n'))
+        while (!file->eof() && (peek() == ' ' || peek() == '\t' || peek() == '#' || peek() == '\n'))
         {
             if (peek() == '#')
                 this->skip_comments();
@@ -106,7 +135,7 @@ namespace we
     {
         std::string token;
         this->next_token();
-        while (!file.eof() && (isalpha(peek()) || peek() == '_'))
+        while (!file->eof() && (isalpha(peek()) || peek() == '_'))
             token += this->next();
         return token;
     }
@@ -116,7 +145,7 @@ namespace we
         std::string arg;
         this->next_token();
         bool is_skipped = false;
-        while (!file.eof() && (is_skipped || (peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '\n' && peek() != ';' && peek() != '{' && peek() != '}')))
+        while (!file->eof() && (is_skipped || (peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '\n' && peek() != ';' && peek() != '{' && peek() != '}')))
 
         {
             if (peek() == '\\' && !is_skipped)
@@ -136,12 +165,12 @@ namespace we
     void Parser::block()
     {
         this->next_token();
-        while (!file.eof() && peek() != '}')
+        while (!file->eof() && peek() != '}')
         {
             this->directive();
             this->next_token();
         }
-        if (current_block == 0)
+        if (file_level == 0)
             this->consume(0);
     }
 
@@ -149,8 +178,9 @@ namespace we
     {
 
         this->consume('{');
-        // std::cout <<"\n" << std::string(level, '\t') << "{" << std::endl;
-        // this->level++;
+        std::cerr <<"\n" << std::string(level, '\t') << "{" << std::endl;
+        this->level++;
+        this->file_level++;
         size_t old_block = current_block;
         current_block = blocks.size();
         blocks.resize(blocks.size() + 1);
@@ -162,8 +192,9 @@ namespace we
             current_directive = 2;
         this->block();
         this->consume('}');
-        // this->level--;
-        // std::cout << std::string(level, '\t') << "}" << std::endl;
+        this->level--;
+        this->file_level--;
+        std::cerr << std::string(level, '\t') << "}" << std::endl;
         current_block = old_block;
     }
 
@@ -176,9 +207,9 @@ namespace we
                 this->unexpected();
             return (void)this->consume(';');
         }
-        // std::cout << std::string(level, '\t') <<  name << " ";
+        std::cerr << std::string(level, '\t') <<  name << " ";
 
-        if (file.eof() || (peek() != '\n' && peek() != ';' && peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '{'))
+        if (file->eof() || (peek() != '\n' && peek() != ';' && peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '{'))
             this->unexpected();
 
         if (dir_infos.count(name) == 0)
@@ -207,13 +238,13 @@ namespace we
 
         std::vector<std::string> &args = (*this->blocks[current_block].directives.insert(std::make_pair(name, std::vector<std::string>()))).second;
 
-        while (!file.eof() && peek() != ';' && peek() != '{' && peek() != '}')
+        while (!file->eof() && peek() != ';' && peek() != '{' && peek() != '}')
         {
             std::string arg = this->get_arg();
             if (!arg.empty())
             {
                 args.push_back(arg);
-                // std::cout << arg << " ";
+                std::cerr << arg << " ";
             }
         }
 
@@ -229,12 +260,25 @@ namespace we
         else
         {
             this->consume(';');
-            // std::cout << ";" << std::endl;
+            std::cerr << ";" << std::endl;
+            if (name == "include")
+            {
+                unsigned int old_level = this->file_level;
+                this->file_level = 0;
+                this->add_file(args[0]);
+                this->block();
+                this->remove_file();
+                this->file_level = old_level;
+                this->blocks[current_block].directives.erase(name);
+            }
         }
     }
 
     Parser::~Parser()
     {
-        file.close();
+        file_info *last = files.top();
+        delete last;
+        files.pop();
+        assert(files.empty());
     }
 }
