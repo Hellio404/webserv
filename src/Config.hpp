@@ -78,6 +78,12 @@ namespace we
     class Config
     {
     public:
+        typedef std::map<int, std::vector<ServerBlock> >::const_iterator    server_block_const_iterator;
+        typedef std::map<int, std::vector<ServerBlock> >::iterator          server_block_iterator;
+        typedef std::map<sockaddr, int, ComparSockAddr>::const_iterator     server_sock_const_iterator;
+        typedef std::map<sockaddr, int, ComparSockAddr>::iterator           server_sock_iterator;
+
+    public:
         enum MultiplexingType
         {
             MulNone,
@@ -94,8 +100,8 @@ namespace we
         long long                                                       client_header_buffer_size;
         long long                                                       client_max_header_size;
 
-        std::map<sockaddr, std::vector<ServerBlock>, ComparSockAddr>    server_blocks;
-        std::map<int, sockaddr>                                         server_socks;
+        std::map<int, std::vector<ServerBlock> >                        server_blocks;
+        std::map<sockaddr, int, ComparSockAddr>                         server_socks;
 
         const ServerBlock*        get_server_block(int socket, const std::string &host) const;
     };

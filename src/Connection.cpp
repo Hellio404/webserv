@@ -17,11 +17,10 @@ namespace we
 
         if (this->client_sock == -1)
             throw std::runtime_error("accept() failed");
-        
+
         multiplexing.add(this->client_sock, this, AMultiplexing::Read);
         this->client_headers_buffer = new char[4096];
         this->status = Connection::Read;
-
     }
 
     char *Connection::skip_crlf(char *ptr, char*end)
@@ -309,6 +308,8 @@ namespace we
     bool    Connection::process_file_for_response()
     {
         // This function should be called after the request is parsed and the server block is initialized
+        this->init_server_block();
+
         assert(this->server != NULL);
         // Loop through the list of locations to find the longest match for the requested file
         for (std::vector<LocationBlock>::const_iterator it = this->server->locations.begin();
@@ -348,5 +349,31 @@ namespace we
 
         this->requested_filepath = filepath;
         return true;
+    }
+
+    // This function is called to find the server block that matches the request
+    void    Connection::init_server_block()
+    {
+        // This function should not be called under any circumstances
+        // if there are no server blocks.
+        assert(this->config.server_blocks.empty() == false);
+
+        Config::server_block_const_iterator sb_it = this->config.server_blocks.find(this->connected_socket);
+        if (sb_it != this->config.server_blocks.end())
+        {
+            for (std::vector<ServerBlock>::const_iterator it = sb_it->second.begin();
+                it != sb_it->second.end(); ++it)
+            {
+                if (strcasecmp(it->server_name.c_str(), this->req_headers["Host"].c_str()) == 0)
+                    this->server = &(*it);
+            }
+
+            // If the server block is not found, the default server block is used instead
+            if (this->server == NULL)
+                this->server = &(sb_it->second.front());
+        }
+        // No server block matches the request socket. This should not happen under any circumstances.
+        else
+            throw std::runtime_error("500 Internal Server Error");
     }
 }

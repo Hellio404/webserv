@@ -51,7 +51,7 @@ int main()
 
     // Have kqueue watch the listen socket
     multiplexing->add(listen_fd, NULL, we::AMultiplexing::Read);
-    config.server_socks[listen_fd] = *reinterpret_cast<struct sockaddr*>(&srv_addr);
+    config.server_socks[*reinterpret_cast<struct sockaddr*>(&srv_addr)] = listen_fd;
 
     std::cout << "Server started on port 80" << std::endl;
 
