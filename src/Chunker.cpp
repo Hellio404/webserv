@@ -82,6 +82,7 @@ namespace we
         }
         if (next_chunk_size == 0 || data_buffer.size() >= data_buffer_size)
         {
+            this->file_size += data_buffer.size();
             file.write(data_buffer.c_str(), data_buffer.size());
             data_buffer.clear();
         }
@@ -149,6 +150,13 @@ namespace we
     {
         return add_to_chunk(str.c_str(), str.c_str() + str.size());
     }
+
+    size_t  ChunckReader::get_file_size() const
+    {
+        return this->file_size;
+    }
+
+
 
     ChunckReader::~ChunckReader() {}
 } // namespace we

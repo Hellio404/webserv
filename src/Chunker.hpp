@@ -1,13 +1,14 @@
 #pragma once
 #include <string>
 #include <fstream>
+#include <limits>
 #include "Utils.hpp"
 
 namespace we
 {
     class ChunckReader
     {
-        static const size_t max_chunk_size = 2147483647;
+        static const size_t max_chunk_size = size_t(-1);
 
     private:
         bool            wait_for_size;
@@ -18,6 +19,7 @@ namespace we
         std::fstream    &file;
         std::string     data_buffer;
         size_t          data_buffer_size;
+        size_t          file_size;
 
     public:
         ChunckReader(std::fstream &f, size_t buffer_size);
@@ -35,6 +37,8 @@ namespace we
         void get_next_chunked_size(const char *it, const char *end);
 
         bool add_to_chunk(const std::string &str);
+
+        size_t  get_file_size() const;
 
         ~ChunckReader();
     };
