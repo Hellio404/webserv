@@ -4,6 +4,7 @@
 #include <map>
 #include <fstream>
 #include <iostream>
+#include <cassert>
 #include "Config.hpp"
 // TODO: remove c++11 to_string
 namespace we
@@ -20,11 +21,23 @@ namespace we
         unsigned int    allow_in_location:1;
     };
 
+    struct directive_data {
+
+        std::vector<std::string> args;
+        std::string              path;
+        unsigned int             line;
+        unsigned int             column;
+        directive_data(std::string const&, unsigned int, unsigned int);
+    };
+
     struct directive_block 
     {
         size_t                                                  parent_idx;
         std::string                                             name;
-        std::multimap <std::string, std::vector<std::string> >  directives;
+        std::multimap <std::string,  directive_data>            directives;
+        std::string                                             path;
+        unsigned int                                            line;
+        unsigned int                                            column;
     };
 
     class Parser
@@ -58,7 +71,7 @@ namespace we
         std::string     get_arg();
         void            directive();
         void            block();
-        void            read_block(const std::string& name);
+        void            read_block(const std::string& name, const std::string& path, unsigned int line, unsigned int col);
         void            expected(char c);
         void            unexpected();
         std::string     file_pos();
