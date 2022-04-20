@@ -133,7 +133,6 @@ namespace we
         if (data.args[0].size() < 2)
             throw   std::runtime_error(error_to_print("invalid argument", data));
         long long ret = atou(std::string(data.args[0].begin(), data.args[0].end() - 2), data);
-        std::cerr << "ret = " << ret << std::endl;
         std::string unit = std::string(data.args[0].end() - 2, data.args[0].end());
         if (unit == "kb")
         {
@@ -168,7 +167,6 @@ namespace we
     {
         int listen_fd, optval = 1;
         struct sockaddr_in srv_addr;
-        std::cerr << "srv_addr.sin_port = " << srv_addr.sin_port << std::endl;
 
         size_t pos = data.args[0].find(':');
 
