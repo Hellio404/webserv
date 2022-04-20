@@ -37,6 +37,7 @@ namespace we
         file_level = 0;
         current_directive = 0;
     }
+
     Parser::file_info::file_info(std::string const& path): path(path), line_number(1), column_number(1)
     {
         f = new std::fstream(path, std::fstream::in);
@@ -190,7 +191,7 @@ namespace we
             this->consume(0);
     }
 
-    void Parser::read_block(const std::string &name, const std::string& path, unsigned int line, unsigned int col)
+    void Parser::read_block(const std::string &name, const std::string& path, unsigned int line, unsigned int col, std::vector<std::string>const& args)
     {
 
         this->consume('{');
@@ -205,6 +206,7 @@ namespace we
         blocks[current_block].path = path;
         blocks[current_block].line = line;
         blocks[current_block].column = col;
+        blocks[current_block].args = args;
         if (name == "server")
             current_directive = 1;
         else if (name == "location")
@@ -279,7 +281,8 @@ namespace we
 
         if (dir_infos[name].allow_block)
         {
-            this->read_block(name, path, line, col);
+            this->read_block(name, path, line, col, args);
+            this->blocks[current_block].directives.erase(name);
         }
         else
         {
