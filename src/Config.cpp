@@ -14,7 +14,19 @@ namespace we
 
     const ServerBlock   *Config::get_server_block(int socket, const std::string &host) const
     {
-        // TODO: implement this
+        Config::server_block_const_iterator pos = this->server_blocks.find(socket);
+
+        if (pos == this->server_blocks.end())
+            return NULL;
+
+        for (std::vector<ServerBlock>::const_iterator sb_it = pos->second.begin(); sb_it != pos->second.end(); ++sb_it)
+        {
+            for (std::vector<std::string>::const_iterator sn_it = sb_it->server_names.begin(); sn_it != sb_it->server_names.end(); ++sn_it)
+            {
+                if (*sn_it == host)
+                    return &(*sb_it);
+            }
+        }
         return NULL;
     }
 
