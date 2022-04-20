@@ -135,8 +135,6 @@ namespace we
     void        init_config();
     bool        load_config(const std::string &, Config &);
 
-    void        validate_config(Config &);
-
     void        init_root_directives(Config &, directive_block *);
     void        init_server_directives(Config &, ServerBlock &, directive_block *, directive_block *);
     void        init_location_directives(LocationBlock &, directive_block *, directive_block *, directive_block *);

@@ -105,6 +105,36 @@ namespace we
         we::register_directive("client_max_body_size", 1, 0, false, false, true, true, true);
     }
 
+    static void validate_config(Config &config)
+    {
+        for (Config::server_block_iterator it = config.server_blocks.begin(); it != config.server_blocks.end(); ++it)
+        {
+            std::set<std::string> server_names;
+
+            for (std::vector<ServerBlock>::iterator sb_it = it->second.begin(); sb_it != it->second.end(); ++sb_it)
+            {
+                for (std::vector<std::string>::iterator sn_it = sb_it->server_names.begin(); sn_it != sb_it->server_names.end(); ++sn_it)
+                {
+                    if (server_names.count(*sn_it))
+                        throw std::runtime_error("conflicting server name \"" + sb_it->server_names[0] + "\" on " + sb_it->listen_addr);
+                    server_names.insert(*sn_it);
+                }
+            }
+        }
+    }
+
+    static void validate_server_config(ServerBlock *server_config)
+    {
+        std::set<std::string> locations;
+
+        for (std::vector<LocationBlock>::iterator lb_it = server_config->locations.begin(); lb_it != server_config->locations.end(); ++lb_it)
+        {
+            if (locations.count(lb_it->pattern))
+                throw std::runtime_error("conflicting location pattern \"" + lb_it->pattern + "\" on " + server_config->listen_addr);
+            locations.insert(lb_it->pattern);
+        }
+    }
+
     bool    load_config(const std::string &file_name, Config &config)
     {
         we::Parser parser(file_name);
@@ -127,7 +157,8 @@ namespace we
         {
             if (it->name == "server")
             {
-                // TODO: before overriding the server_block, check for duplicate location patterns
+                if (current_server_config != NULL)
+                    validate_server_config(current_server_config);
 
                 server_block = &(*it);
                 location_block = NULL;
@@ -137,8 +168,8 @@ namespace we
                 config.server_blocks[server_config.listen_socket].push_back(server_config);
                 current_server_config = &config.server_blocks[server_config.listen_socket].back();
 
-                if (server_config.server_names.empty())
-                    server_config.server_names.push_back("");
+                if (current_server_config->server_names.empty())
+                    current_server_config->server_names.push_back("");
 
                 if ((it + 1) == parser.blocks.end() || (it + 1)->name != "location")
                 {
@@ -160,23 +191,5 @@ namespace we
 
         validate_config(config);
         return true;
-    }
-
-    void    validate_config(Config &config)
-    {
-        for (Config::server_block_iterator it = config.server_blocks.begin(); it != config.server_blocks.end(); ++it)
-        {
-            std::set<std::string> server_names;
-
-            for (std::vector<ServerBlock>::iterator sb_it = it->second.begin(); sb_it != it->second.end(); ++sb_it)
-            {
-                for (std::vector<std::string>::iterator sn_it = sb_it->server_names.begin(); sn_it != sb_it->server_names.end(); ++sn_it)
-                {
-                    if (server_names.count(*sn_it))
-                        throw std::runtime_error("conflicting server name \"" + sb_it->server_names[0] + "\" on " + sb_it->listen_addr);
-                    server_names.insert(*sn_it);
-                }
-            }
-        }
     }
 }
