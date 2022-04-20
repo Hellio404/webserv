@@ -84,7 +84,7 @@ namespace we
         // General directives
         we::register_directive("include", 1, 0, false, true, true, true, true);
         we::register_directive("server", 0, 0, true, true, true, false, false);
-        we::register_directive("location", 1, 0, true, true, false, true, false);
+        we::register_directive("location", 1, 1, true, true, false, true, false);
 
         // Root level directives
         we::register_directive("use_events", 1, 0, false, false, true, false, false);
@@ -195,7 +195,19 @@ namespace we
                 location_block = &(*it);
 
                 LocationBlock location_config;
-                location_config.pattern = location_block->args[0];
+                if (location_block->args.size() == 2)
+                {
+                    location_config.pattern = location_block->args[1];
+                    if (location_block->args[0] == "=")
+                        location_config.modifier = LocationBlock::Modifier_exact;
+                    else if (location_block->args[0] == "~")
+                        location_config.modifier = LocationBlock::Modifier_regex;
+                    else
+                        throw std::runtime_error("Invalid pattern modifier in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
+                }
+                else
+                    location_config.pattern = location_block->args[0];
+
                 init_location_directives(location_config, root_block, server_block, location_block);
                 current_server_config->locations.push_back(location_config);
             }

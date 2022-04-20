@@ -53,9 +53,20 @@ namespace we
             int put: 2;
             int head: 2;
         };
+        
 
     public:
+        enum Modifier
+        {
+            Modifier_None = 0,
+            Modifier_exact = 1,
+            Modifier_prefix = 2,
+            Modifier_suffix = 3,
+            Modifier_regex = 4,
+        };
+
         std::string                 pattern;
+        Modifier                    modifier;
         long long                   client_body_timeout;
         bool                        client_body_in_file;
         long long                   client_body_buffer_size;
