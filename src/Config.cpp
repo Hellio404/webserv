@@ -55,6 +55,8 @@ namespace we
         this->client_max_body_size = 16 * 1024 * 1024;
 
         this->pattern = "/";
+        this->modifier = LocationBlock::Modifier_None;
+
         this->index.push_back("index.html");
 
         char tmp[PATH_MAX];
