@@ -4,7 +4,7 @@
 #include "src/Config.hpp"
 #include "src/Utils.hpp"
 #include "src/Date.hpp"
-
+#include <Regex.hpp>
 #include <fcntl.h>
 
 int main()
