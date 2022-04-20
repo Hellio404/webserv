@@ -42,11 +42,11 @@ namespace we
         this->client_body_buffer_size = 4 * 1024;
         this->client_max_body_size = 16 * 1024 * 1024;
 
+        this->pattern = "/";
         this->index.push_back("index.html");
-        this->index.push_back("index.htm");
 
-        char tmp[256];
-        getcwd(tmp, 256);
+        char tmp[PATH_MAX];
+        getcwd(tmp, PATH_MAX);
         this->root = tmp;
 
         this->autoindex = false;
@@ -127,6 +127,8 @@ namespace we
         {
             if (it->name == "server")
             {
+                // TODO: before overriding the server_block, check for duplicate location patterns
+
                 server_block = &(*it);
                 location_block = NULL;
 
@@ -166,13 +168,13 @@ namespace we
         {
             std::set<std::string> server_names;
 
-            for (std::vector<ServerBlock>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2)
+            for (std::vector<ServerBlock>::iterator sb_it = it->second.begin(); sb_it != it->second.end(); ++sb_it)
             {
-                for (std::vector<std::string>::iterator it3 = it2->server_names.begin(); it3 != it2->server_names.end(); ++it3)
+                for (std::vector<std::string>::iterator sn_it = sb_it->server_names.begin(); sn_it != sb_it->server_names.end(); ++sn_it)
                 {
-                    if (server_names.count(*it3))
-                        throw std::runtime_error("duplicate server name: " + it2->server_names[0] + " listening on the same socket");
-                    server_names.insert(*it3);
+                    if (server_names.count(*sn_it))
+                        throw std::runtime_error("conflicting server name \"" + sb_it->server_names[0] + "\" on " + sb_it->listen_addr);
+                    server_names.insert(*sn_it);
                 }
             }
         }

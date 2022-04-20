@@ -166,52 +166,68 @@ namespace we
     static void handle_server_listen(Config &config, ServerBlock &server_config, directive_data const &data)
     {
         int listen_fd, optval = 1;
-        struct sockaddr_in srv_addr;
+        struct addrinfo hints, *res;
 
-        size_t pos = data.args[0].find(':');
+        std::string host;
+        std::string port_str;
+        long long port;
 
-        memset(&srv_addr, 0, sizeof(srv_addr));
-        srv_addr.sin_family = AF_INET; // IPv4
-        if (pos == std::string::npos)
+        std::string::const_iterator pos = std::find(data.args[0].begin(), data.args[0].end(), ':');
+        if (pos != data.args[0].end())
         {
-            srv_addr.sin_port = htons(std::atoi(data.args[0].c_str()));
-            srv_addr.sin_addr.s_addr = INADDR_ANY; // 0.0.0.0
+            host = std::string(data.args[0].begin(), pos);
+            port_str = std::string(pos + 1, data.args[0].end());
         }
         else
         {
-            // TODO: handle getaddrinfo
-            srv_addr.sin_addr.s_addr = INADDR_ANY; // 0.0.0.0
-            srv_addr.sin_port = htons(std::atoi(data.args[0].substr(pos + 1).c_str()));
+            host = "0.0.0.0";
+            port_str = data.args[0];
         }
 
-        Config::server_sock_iterator it = config.server_socks.find(*reinterpret_cast<struct sockaddr *>(&srv_addr));
+        if (!std::isdigit(port_str[0]))
+            throw std::runtime_error(error_to_print("invalid port", data));
+        port = we::atoi(port_str, data);
+
+        if (port < 1 || port > 65535)
+            throw std::runtime_error(error_to_print("invalid port", data));
+
+        server_config.listen_addr = host + ":" + port_str;
+
+        memset(&hints, 0, sizeof(hints));
+        hints.ai_family = AF_INET;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_flags = AI_PASSIVE;
+
+        if (getaddrinfo(host.c_str(), port_str.c_str(), &hints, &res))
+            throw std::runtime_error(error_to_print(std::string("getaddrinfo ") + strerror(errno), data));
+
+        if (res == NULL)
+            throw std::runtime_error(error_to_print("host not found in \"" + host + ":" + port_str + "\"  of the \"listen\" directive", data));
+
+        Config::server_sock_iterator it = config.server_socks.find(*res->ai_addr);
         if (it != config.server_socks.end())
         {
             server_config.listen_socket = it->second;
-            server_config.server_addrs.push_back(srv_addr);
-            server_config.server_socks.push_back(it->second);
             return ; // already listening on this address and port
         }
 
         if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(std::string("socket ") + strerror(errno));
 
         if (fcntl(listen_fd, F_SETFL, O_NONBLOCK) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(std::string("fcntl ") + strerror(errno));
 
         if (setsockopt(listen_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(int)) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(std::string("setsockopt ") + strerror(errno));
 
-        if (bind(listen_fd, reinterpret_cast<struct sockaddr *>(&srv_addr), sizeof(srv_addr)) < 0)
-            throw std::runtime_error(strerror(errno));
+        if (bind(listen_fd, res->ai_addr, res->ai_addrlen) < 0)
+            throw std::runtime_error(std::string("bind ") + strerror(errno));
 
         if (listen(listen_fd, SOMAXCONN) < 0)
-            throw std::runtime_error(strerror(errno));
+            throw std::runtime_error(std::string("listen ") + strerror(errno));
 
         server_config.listen_socket = listen_fd;
-        server_config.server_addrs.push_back(srv_addr);
-        server_config.server_socks.push_back(listen_fd);
-        config.server_socks[*reinterpret_cast<struct sockaddr*>(&srv_addr)] = listen_fd;
+        config.server_socks[*res->ai_addr] = listen_fd;
     }
 
     static void handle_location_methods(LocationBlock &location_config, directive_data const &data, bool deny)
@@ -343,6 +359,15 @@ namespace we
             else
                 dispatcher[i].func(&server_config, *data, dispatcher[i].offset);
         }
+
+        if (server_config.listen_socket == -1)
+        {
+            directive_data data("listen", 0, 0);
+            data.args.push_back("0.0.0.0:80");
+            handle_server_listen(config, server_config, data);
+        }
+        if (server_config.server_names.empty())
+            server_config.server_names.push_back("");
     }
 
     void    init_location_directives(LocationBlock &location_config, directive_block *root, directive_block *server, directive_block *location)
