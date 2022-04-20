@@ -17,6 +17,14 @@
 namespace we
 {
     struct directive_data;
+    struct directive_block;
+
+    struct directive_dispatch
+    {
+        const char *name;
+        void (*func)(void *, directive_data const &, size_t);
+        size_t offset;
+    };
 
     class ComparSockAddr: public std::binary_function<sockaddr, sockaddr, bool>
     {
@@ -58,6 +66,9 @@ namespace we
         std::string                 upload_dir;
         AllowedMethods              allowed_methods;
 
+    public:
+        LocationBlock();
+
         bool                        is_allowed_method(std::string method) const;
     };
 
@@ -65,7 +76,7 @@ namespace we
     {
     public:
         int                                     listen_socket;
-        std::string                             server_name;
+        std::vector<std::string>                server_names;
         std::vector<struct sockaddr_in>         server_addrs;
         std::vector<int>                        server_socks;
 
@@ -79,6 +90,10 @@ namespace we
         long long                               lingering_close_timeout;
 
         std::vector<LocationBlock>              locations;
+
+    public:
+        ServerBlock();
+
         const LocationBlock*                    get_location(const std::string& uri) const;
     };
 
@@ -93,7 +108,7 @@ namespace we
     public:
         enum MultiplexingType
         {
-            MulNone,
+            MulNone = 0,
             MulSelect,
             MulKqueue,
             MulPoll,
@@ -110,22 +125,22 @@ namespace we
         std::map<int, std::vector<ServerBlock> >                        server_blocks;
         std::map<sockaddr, int, ComparSockAddr>                         server_socks;
 
+    public:
+        Config();
+
         const ServerBlock*        get_server_block(int socket, const std::string &host) const;
     };
 
-    bool    load_config(const std::string& file_name, Config& config);
+    void        init_config();
+    bool        load_config(const std::string &, Config &);
 
-    // data.args[0] == 10s | 20m | 30h
-    void    set_time_directive(void *, we::directive_data const &, size_t);
-    // data.args[0] == 1024 | -2048 | 4096 | -8192 | -16384 | 32768 | 65536 (long long)
-    void    set_number_directive(void *, we::directive_data const &, size_t);
-    // data.args[0] == 1024 | 2048 | 4096 | 8192 | 16384 | 32768 | 65536 (long long) positive
-    void    set_unumber_directive(void *, we::directive_data const &, size_t);
-    // data.args[0] == on | off
-    void    set_boolean_directive(void *, we::directive_data const &, size_t);
-    // data.args[0] == "some string"
-    void    set_string_directive(void *, we::directive_data const &, size_t);
-    // data.args[0] == 1mb | 2mb | 4mb | 8mb | 16mb | 32mb | 64mb | 128mb | 256mb | 512mb | 1024mb
-    void    set_size_directive(void *, we::directive_data const &, size_t);
+    void        validate_config(Config &);
+
+    void        init_root_directives(Config &, directive_block *);
+    void        init_server_directives(Config &, ServerBlock &, directive_block *, directive_block *);
+    void        init_location_directives(LocationBlock &, directive_block *, directive_block *, directive_block *);
+
+    // Debug functions
+    void        print_config_block_info(const Config & val);
 
 } // namespace we

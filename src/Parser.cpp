@@ -191,7 +191,7 @@ namespace we
             this->consume(0);
     }
 
-    void Parser::read_block(const std::string &name, const std::string& path, unsigned int line, unsigned int col, std::vector<std::string>const& args)
+    void Parser::read_block(const std::string &name, const std::string& path, unsigned int line, unsigned int col, std::vector<std::string> args)
     {
 
         this->consume('{');

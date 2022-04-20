@@ -364,8 +364,9 @@ namespace we
             for (std::vector<ServerBlock>::const_iterator it = sb_it->second.begin();
                 it != sb_it->second.end(); ++it)
             {
-                if (strcasecmp(it->server_name.c_str(), this->req_headers["Host"].c_str()) == 0)
-                    this->server = &(*it);
+                // FIXME: server_name is a vector :(
+                // if (strcasecmp(it->server_name.c_str(), this->req_headers["Host"].c_str()) == 0)
+                //     this->server = &(*it);
             }
 
             // If the server block is not found, the default server block is used instead
