@@ -4,7 +4,7 @@ namespace we
 {
     static std::string error_to_print(const std::string &val, const directive_data &data)
     {
-        return val + " at " + data.path + " line " + std::to_string(data.line);
+        return val + " at " + data.path + " line " + std::to_string(data.line) + ":" + std::to_string(data.column);
     }
 
     static long long atoi(const std::string &val, const directive_data &data)
@@ -24,9 +24,10 @@ namespace we
         {
             if (!isalnum(val[i]))
                 throw   std::runtime_error(error_to_print("invalid argument", data));
-            ret += (val[i] - '0') * 10;
+            ret = ret * 10 + val[i] - '0';
             if (ret > 9223372036854775807ULL + (sign == -1))
                 throw   std::runtime_error(error_to_print("limit exceeded", data));
+            i++;
         }
         if (i != val.size())
             throw   std::runtime_error(error_to_print("invalid argument", data));
@@ -48,10 +49,12 @@ namespace we
         {
             if (!isalnum(val[i]))
                 throw   std::runtime_error(error_to_print("invalid argument", data));
-            ret += (val[i] - '0') * 10;
+            ret = ret * 10 + (val[i] - '0');
             if (ret > 9223372036854775807ULL)
                 throw   std::runtime_error(error_to_print("limit exceeded", data));
+            i++;
         }
+
         if (i != val.size())
             throw   std::runtime_error(error_to_print("invalid argument", data));
         return ret;
@@ -59,8 +62,8 @@ namespace we
 
     static char check_validity(const std::string &val, directive_data const &data)
     {
-        if (val.back() != 's' || val.back() != 'm' || val.back() != 'h' || val.back() != 'd')
-            throw   std::runtime_error(error_to_print("limit exceeded", data));
+        if (val.back() != 's' && val.back() != 'm' && val.back() != 'h' && val.back() != 'd')
+            throw   std::runtime_error(error_to_print("invalid argument", data));
         return val.back();
     }
 
@@ -68,7 +71,9 @@ namespace we
     static void set_time_directive(void *block, directive_data const &data, size_t offset)
     {
         char ch = check_validity(data.args[0], data);
+
         long long ret = atou(std::string(data.args[0].begin(), data.args[0].end() - 1), data);
+
         switch (ch)
         {
         case 's':
@@ -113,9 +118,9 @@ namespace we
     static void set_boolean_directive(void *block, directive_data const &data, size_t offset)
     {
         bool ret;
-        if (strcasecmp(data.args[0].c_str(), "on") == 0 || strcasecmp(data.args[0].c_str(), "true"))
+        if (strcasecmp(data.args[0].c_str(), "on") == 0 || strcasecmp(data.args[0].c_str(), "true") == 0)
             ret = 1;
-        else if (strcasecmp(data.args[0].c_str(), "off") == 0 || strcasecmp(data.args[0].c_str(), "false"))
+        else if (strcasecmp(data.args[0].c_str(), "off") == 0 || strcasecmp(data.args[0].c_str(), "false") == 0)
             ret = 0;
         else
             throw   std::runtime_error(error_to_print("invalid argument", data));
@@ -147,6 +152,8 @@ namespace we
                 throw   std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1024 * 1024 * 1024;
         }
+        else
+            throw   std::runtime_error(error_to_print("invalid argument", data));
         *reinterpret_cast<long long *>((char *)block + offset) = ret;
     }
 
@@ -407,7 +414,6 @@ namespace we
             std::cout << " " << val.server_names[i];
         std::cout << std::endl;
         std::cout << "\t\tserver_send_timeout : " << val.server_send_timeout << std::endl;
-        std::cout << "\t\tserver_body_buffer_size : " << val.server_body_buffer_size << std::endl;
         std::cout << "\t\tserver_body_buffer_size : " << val.server_body_buffer_size << std::endl;
         for (size_t i = 0; i < val.locations.size(); i++)
             print_location_block_info(val.locations[i]);

@@ -168,9 +168,12 @@ namespace we
 
             for (std::vector<ServerBlock>::iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2)
             {
-                if (server_names.count(it2->server_names[0]))
-                    throw std::runtime_error("duplicate server name: " + it2->server_names[0] + " listening on the same socket");
-                server_names.insert(it2->server_names[0]);
+                for (std::vector<std::string>::iterator it3 = it2->server_names.begin(); it3 != it2->server_names.end(); ++it3)
+                {
+                    if (server_names.count(*it3))
+                        throw std::runtime_error("duplicate server name: " + it2->server_names[0] + " listening on the same socket");
+                    server_names.insert(*it3);
+                }
             }
         }
     }
