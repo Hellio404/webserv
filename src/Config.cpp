@@ -27,7 +27,7 @@ namespace we
                     return &(*sb_it);
             }
         }
-        return NULL;
+        return &pos->second.front();
     }
 
     ServerBlock::ServerBlock()
@@ -137,13 +137,14 @@ namespace we
 
     static void validate_server_config(ServerBlock *server_config)
     {
-        std::set<std::string> locations;
+        std::set<std::pair<std::string, LocationBlock::Modifier> > locations;
 
         for (std::vector<LocationBlock>::iterator lb_it = server_config->locations.begin(); lb_it != server_config->locations.end(); ++lb_it)
         {
-            if (locations.count(lb_it->pattern))
+            std::pair<std::string, LocationBlock::Modifier> location = std::make_pair(lb_it->pattern, lb_it->modifier);
+            if (locations.count(location))
                 throw std::runtime_error("conflicting location pattern \"" + lb_it->pattern + "\" on " + server_config->listen_addr);
-            locations.insert(lb_it->pattern);
+            locations.insert(location);
         }
     }
 
@@ -206,14 +207,20 @@ namespace we
                         throw std::runtime_error("Invalid pattern modifier in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
                 }
                 else
+                {
+                    location_config.modifier = LocationBlock::Modifier_None;
                     location_config.pattern = location_block->args[0];
+                }
 
                 init_location_directives(location_config, root_block, server_block, location_block);
                 current_server_config->locations.push_back(location_config);
             }
         }
 
+        if (current_server_config != NULL)
+            validate_server_config(current_server_config);
         validate_config(config);
+
         return true;
     }
 }
