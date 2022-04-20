@@ -8,6 +8,8 @@
 #include <netdb.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <climits>
+#include <algorithm>
 #include <string>
 #include <vector>
 #include <map>
@@ -75,10 +77,9 @@ namespace we
     class ServerBlock
     {
     public:
+        std::string                             listen_addr;
         int                                     listen_socket;
         std::vector<std::string>                server_names;
-        std::vector<struct sockaddr_in>         server_addrs;
-        std::vector<int>                        server_socks;
 
         long long                               server_send_timeout;
         long long                               server_body_buffer_size;
