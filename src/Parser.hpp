@@ -35,6 +35,7 @@ namespace we
         size_t                                                  parent_idx;
         std::string                                             name;
         std::multimap <std::string,  directive_data>            directives;
+        std::vector<std::string>                                args;
         std::string                                             path;
         unsigned int                                            line;
         unsigned int                                            column;
@@ -54,9 +55,9 @@ namespace we
         };
         unsigned int                    file_level;
         std::fstream*                   file;
-        std::vector <directive_block>   blocks;
         std::stack<file_info*>          files;
     public:
+        std::vector <directive_block>   blocks;
         Parser(std::string const &path);
         ~Parser();
         unsigned int    level; // debug
@@ -71,7 +72,7 @@ namespace we
         std::string     get_arg();
         void            directive();
         void            block();
-        void            read_block(const std::string& name, const std::string& path, unsigned int line, unsigned int col);
+        void            read_block(const std::string&, const std::string&, unsigned int, unsigned int, std::vector<std::string>const&);
         void            expected(char c);
         void            unexpected();
         std::string     file_pos();
