@@ -198,7 +198,8 @@ namespace we
         hints.ai_socktype = SOCK_STREAM;
         hints.ai_flags = AI_PASSIVE;
 
-        getaddrinfo(host.c_str(), port_str.c_str(), &hints, &res);
+        if (getaddrinfo(host.c_str(), port_str.c_str(), &hints, &res))
+            throw std::runtime_error(error_to_print(std::string("getaddrinfo ") + strerror(errno), data));
 
         if (res == NULL)
             throw std::runtime_error(error_to_print("host not found in \"" + host + ":" + port_str + "\"  of the \"listen\" directive", data));
