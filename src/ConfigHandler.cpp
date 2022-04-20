@@ -366,8 +366,6 @@ namespace we
             data.args.push_back("0.0.0.0:80");
             handle_server_listen(config, server_config, data);
         }
-        if (server_config.server_names.empty())
-            server_config.server_names.push_back("");
     }
 
     void    init_location_directives(LocationBlock &location_config, directive_block *root, directive_block *server, directive_block *location)
