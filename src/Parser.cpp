@@ -33,7 +33,7 @@ namespace we
 
         blocks[0].name = "_root";
         current_block = 0;
-        level = 0; // debug
+        // level = 0; // debug
         file_level = 0;
         current_directive = 0;
     }
@@ -104,6 +104,11 @@ namespace we
     std::string Parser::file_pos()
     {
         return files.top()->path + " line " + std::to_string(files.top()->line_number) + ":" + std::to_string(files.top()->column_number);
+    }
+
+    std::string Parser::file_pos(unsigned int line, unsigned int column)
+    {
+        return files.top()->path + " line " + std::to_string(line) + ":" + std::to_string(column);
     }
 
     void Parser::expected(char c)
@@ -195,8 +200,8 @@ namespace we
     {
 
         this->consume('{');
-        std::cerr <<"\n" << std::string(level, '\t') << "{" << std::endl;
-        this->level++;
+        // std::cerr <<"\n" << std::string(level, '\t') << "{" << std::endl;
+        // this->level++;
         this->file_level++;
         size_t old_block = current_block;
         current_block = blocks.size();
@@ -213,9 +218,9 @@ namespace we
             current_directive = 2;
         this->block();
         this->consume('}');
-        this->level--;
+        // this->level--;
         this->file_level--;
-        std::cerr << std::string(level, '\t') << "}" << std::endl;
+        // std::cerr << std::string(level, '\t') << "}" << std::endl;
         current_block = old_block;
     }
 
@@ -233,34 +238,34 @@ namespace we
                 this->unexpected();
             return (void)this->consume(';');
         }
-        std::cerr << std::string(level, '\t') <<  name << " ";
+        // std::cerr << std::string(level, '\t') <<  name << " ";
 
         if (file->eof() || (peek() != '\n' && peek() != ';' && peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '{'))
             this->unexpected();
 
         if (dir_infos.count(name) == 0)
-            throw std::runtime_error("Unknown directive " + name + " at " + file_pos());
+            throw std::runtime_error("Unknown directive '" + name + "' at " + file_pos(line, col));
 
         switch (current_block)
         {
         case 0:
             if (dir_infos[name].allow_in_root == false)
-                throw std::runtime_error("Directive " + name + " is not allowed in root " + file_pos());
+                throw std::runtime_error("Directive '" + name + "' is not allowed in root " + file_pos(line, col));
             break;
         case 1:
             if (dir_infos[name].allow_in_server == false)
-                throw std::runtime_error("Directive " + name + " is not allowed in server " + file_pos());
+                throw std::runtime_error("Directive '" + name + "' is not allowed in server " + file_pos(line, col));
             break;
         case 2:
             if (dir_infos[name].allow_in_location == false)
-                throw std::runtime_error("Directive " + name + " is not allowed in location " + file_pos());
+                throw std::runtime_error("Directive '" + name + "' is not allowed in location " + file_pos(line, col));
             break;
         default:
             break;
         }
 
         if (this->blocks[current_block].directives.count(name) > 0 && !dir_infos[name].allow_duplicate)
-            throw std::runtime_error("Duplicate directive " + name + " at " + file_pos());
+            throw std::runtime_error("Duplicate directive '" + name + "' at " + file_pos(line, col));
 
         std::vector<std::string> &args = (*this->blocks[current_block].directives.insert(std::make_pair(name, directive_data(path, line, col)))).second.args;
 
@@ -270,14 +275,14 @@ namespace we
             if (!arg.empty())
             {
                 args.push_back(arg);
-                std::cerr << arg << " ";
+                // std::cerr << arg << " ";
             }
         }
 
         if (args.size() < dir_infos[name].num_args)
-            throw std::runtime_error("Too few arguments for directive " + name + " at " + file_pos());
+            throw std::runtime_error("Too few arguments for directive '" + name + "' at " + file_pos(line, col));
         if (args.size() > dir_infos[name].num_args + dir_infos[name].num_opt_args)
-            throw std::runtime_error("Too many arguments for directive " + name + " at " + file_pos());
+            throw std::runtime_error("Too many arguments for directive '" + name + "' at " + file_pos(line, col));
 
         if (dir_infos[name].allow_block)
         {
@@ -287,13 +292,22 @@ namespace we
         else
         {
             this->consume(';');
-            std::cerr << ";" << std::endl;
+            // std::cerr << ";" << std::endl;
             if (name == "include")
             {
                 unsigned int old_level = this->file_level;
                 this->file_level = 0;
                 this->add_file(args[0]);
-                this->block();
+                try
+                {
+                    this->block();
+                }
+                catch(...)
+                {
+                    this->remove_file();
+                    throw;
+                }
+                
                 this->remove_file();
                 this->file_level = old_level;
                 this->blocks[current_block].directives.erase(name);

@@ -79,6 +79,8 @@ namespace we
         void            expected(char c);
         void            unexpected();
         std::string     file_pos();
+        std::string     file_pos(unsigned int line, unsigned int column);
+
         void            remove_file();
         void            add_file(std::string const &path);
 

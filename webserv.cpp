@@ -12,8 +12,15 @@ int main()
     we::Config config;
     we::AMultiplexing *multiplexing = new we::MultiplexingSelect();
     we::EventLoop eventLoop;
-
-    we::load_config("./conf/webserv.conf", config);
+    try
+    {
+        we::load_config("./conf/webserv.conf", config);
+    }
+    catch(std::exception const& e)
+    {
+        std::cerr << e.what() << std::endl;
+        return 1;
+    }
 
     print_config_block_info(config);
 
