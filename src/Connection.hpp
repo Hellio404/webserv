@@ -84,5 +84,6 @@ namespace we
         void        print_headers();
 
         bool        process_file_for_response();
+        void        init_server_block();
     };
 }

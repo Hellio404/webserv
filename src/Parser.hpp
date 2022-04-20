@@ -1,11 +1,14 @@
 #pragma once
+
+#include "Config.hpp"
+
+#include <iostream>
+#include <fstream>
+#include <cassert>
+#include <vector>
 #include <string>
 #include <stack>
 #include <map>
-#include <fstream>
-#include <iostream>
-#include <cassert>
-#include "Config.hpp"
 // TODO: remove c++11 to_string
 namespace we
 {
@@ -21,8 +24,8 @@ namespace we
         unsigned int    allow_in_location:1;
     };
 
-    struct directive_data {
-
+    struct directive_data
+    {
         std::vector<std::string> args;
         std::string              path;
         unsigned int             line;
@@ -72,7 +75,7 @@ namespace we
         std::string     get_arg();
         void            directive();
         void            block();
-        void            read_block(const std::string&, const std::string&, unsigned int, unsigned int, std::vector<std::string>const&);
+        void            read_block(const std::string&, const std::string&, unsigned int, unsigned int, std::vector<std::string>);
         void            expected(char c);
         void            unexpected();
         std::string     file_pos();

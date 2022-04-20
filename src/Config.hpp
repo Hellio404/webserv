@@ -1,16 +1,31 @@
 #pragma once
 
+#include "Parser.hpp"
+
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <errno.h>
 #include <string>
 #include <vector>
 #include <map>
 
+#define OFFSET_OF(type, member) ((size_t)&(((type*)0)->member))
+
 namespace we
 {
- /*
-    + ADD LOGGING
- */
+    struct directive_data;
+    struct directive_block;
+
+    struct directive_dispatch
+    {
+        const char *name;
+        void (*func)(void *, directive_data const &, size_t);
+        size_t offset;
+    };
+
     class ComparSockAddr: public std::binary_function<sockaddr, sockaddr, bool>
     {
     public:
@@ -20,7 +35,7 @@ namespace we
             const struct sockaddr_in* rhs_in = reinterpret_cast<const struct sockaddr_in*>(&rhs);
 
             return (lhs_in->sin_addr.s_addr < rhs_in->sin_addr.s_addr ||
-                    (lhs_in->sin_addr.s_addr == rhs_in->sin_addr.s_addr && 
+                    (lhs_in->sin_addr.s_addr == rhs_in->sin_addr.s_addr &&
                         lhs_in->sin_port < rhs_in->sin_port)
                     );
         }
@@ -44,7 +59,6 @@ namespace we
         long long                   client_body_buffer_size;
         long long                   client_max_body_size;
 
-
         std::vector<std::string>    index;
         std::string                 root;
         bool                        autoindex;
@@ -52,13 +66,17 @@ namespace we
         std::string                 upload_dir;
         AllowedMethods              allowed_methods;
 
+    public:
+        LocationBlock();
+
         bool                        is_allowed_method(std::string method) const;
     };
 
     class ServerBlock
     {
     public:
-        std::string                             server_name;
+        int                                     listen_socket;
+        std::vector<std::string>                server_names;
         std::vector<struct sockaddr_in>         server_addrs;
         std::vector<int>                        server_socks;
 
@@ -72,15 +90,25 @@ namespace we
         long long                               lingering_close_timeout;
 
         std::vector<LocationBlock>              locations;
+
+    public:
+        ServerBlock();
+
         const LocationBlock*                    get_location(const std::string& uri) const;
     };
 
     class Config
     {
     public:
+        typedef std::map<int, std::vector<ServerBlock> >::const_iterator    server_block_const_iterator;
+        typedef std::map<int, std::vector<ServerBlock> >::iterator          server_block_iterator;
+        typedef std::map<sockaddr, int, ComparSockAddr>::const_iterator     server_sock_const_iterator;
+        typedef std::map<sockaddr, int, ComparSockAddr>::iterator           server_sock_iterator;
+
+    public:
         enum MultiplexingType
         {
-            MulNone,
+            MulNone = 0,
             MulSelect,
             MulKqueue,
             MulPoll,
@@ -94,10 +122,25 @@ namespace we
         long long                                                       client_header_buffer_size;
         long long                                                       client_max_header_size;
 
-        std::map<sockaddr, std::vector<ServerBlock>, ComparSockAddr>    server_blocks;
-        std::map<int, sockaddr>                                         server_socks;
+        std::map<int, std::vector<ServerBlock> >                        server_blocks;
+        std::map<sockaddr, int, ComparSockAddr>                         server_socks;
+
+    public:
+        Config();
 
         const ServerBlock*        get_server_block(int socket, const std::string &host) const;
     };
+
+    void        init_config();
+    bool        load_config(const std::string &, Config &);
+
+    void        validate_config(Config &);
+
+    void        init_root_directives(Config &, directive_block *);
+    void        init_server_directives(Config &, ServerBlock &, directive_block *, directive_block *);
+    void        init_location_directives(LocationBlock &, directive_block *, directive_block *, directive_block *);
+
+    // Debug functions
+    void        print_config_block_info(const Config & val);
 
 } // namespace we
