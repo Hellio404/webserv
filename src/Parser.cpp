@@ -212,6 +212,7 @@ namespace we
         blocks[current_block].line = line;
         blocks[current_block].column = col;
         blocks[current_block].args = args;
+        size_t old_directive = current_directive;
         if (name == "server")
             current_directive = 1;
         else if (name == "location")
@@ -221,6 +222,7 @@ namespace we
         // this->level--;
         this->file_level--;
         // std::cerr << std::string(level, '\t') << "}" << std::endl;
+        current_directive = old_directive;
         current_block = old_block;
     }
 
@@ -246,7 +248,7 @@ namespace we
         if (dir_infos.count(name) == 0)
             throw std::runtime_error("Unknown directive '" + name + "' at " + file_pos(line, col));
 
-        switch (current_block)
+        switch (current_directive)
         {
         case 0:
             if (dir_infos[name].allow_in_root == false)
