@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include "Regex.hpp"
 
 #define OFFSET_OF(type, member) ((size_t)&(((type*)0)->member))
 
@@ -67,6 +68,7 @@ namespace we
 
         std::string                 pattern;
         Modifier                    modifier;
+        ft::Regex                   *regex;
         long long                   client_body_timeout;
         bool                        client_body_in_file;
         long long                   client_body_buffer_size;
@@ -81,6 +83,8 @@ namespace we
 
     public:
         LocationBlock();
+        ~LocationBlock();
+        LocationBlock(LocationBlock const &);
 
         bool                        is_allowed_method(std::string method) const;
     };
