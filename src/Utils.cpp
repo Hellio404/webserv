@@ -30,6 +30,13 @@ namespace we
         return it;
     }
 
+    std::string to_hex(size_t number)
+    {
+        std::stringstream stream;
+        stream << std::hex << number;
+        return stream.str();
+    }
+
     int char_to_hex(char c)
     {
         if (c <= '9')
