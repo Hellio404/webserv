@@ -21,7 +21,6 @@ namespace we
         bool        ended;
         std::string internal_buffer;
 
-
     public:
         ResponseServer(bool);
         virtual ~ResponseServer();
@@ -38,20 +37,21 @@ namespace we
         unsigned int error_code;
 
     public:
-        ResponseServerFile(std::string const &, unsigned int error_code, bool = false);
-        ssize_t &load_next_data(std::string &buffer, size_t size, bool &ended);
+        ResponseServerFile(std::string const &, unsigned int, bool = false);
+        ssize_t &load_next_data(std::string &, size_t, bool &);
     };
 
     class ResponseServerDirectory : public ResponseServer
     {
     protected:
+        std::string location;
         std::string dir_path;
         std::string response_buffer;
 
         void load_directory_listing();
 
     public:
-        ResponseServerDirectory(std::string const &, bool);
+        ResponseServerDirectory(std::string const &, std::string const &, bool = false);
         ssize_t &load_next_data(std::string &, size_t, bool &);
     };
 }
