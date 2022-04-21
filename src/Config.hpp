@@ -59,11 +59,12 @@ namespace we
     public:
         enum Modifier
         {
-            Modifier_None = 0,
+            Modifier_none = 0,
             Modifier_exact = 1,
             Modifier_prefix = 2,
             Modifier_suffix = 3,
             Modifier_regex = 4,
+            Modifier_regex_icase = 5,
         };
 
         std::string                 pattern;

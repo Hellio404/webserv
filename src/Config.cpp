@@ -52,7 +52,7 @@ namespace we
         {
             switch (it->modifier)
             {
-                case LocationBlock::Modifier_None:
+                case LocationBlock::Modifier_none:
                     if (!regex && std::strncmp(it->pattern.c_str(), uri.c_str(), it->pattern.size()) == 0)
                     {
                         if (!normal || it->pattern.size() > normal->pattern.size())
@@ -64,6 +64,7 @@ namespace we
                         return &(*it);
                     break;
                 case LocationBlock::Modifier_regex:
+                case LocationBlock::Modifier_regex_icase:
                     if (!regex && it->regex->test(uri))
                         regex = &(*it);
                     break;
@@ -85,7 +86,7 @@ namespace we
         this->client_max_body_size = 16 * 1024 * 1024;
         this->regex = NULL;
         this->pattern = "/";
-        this->modifier = LocationBlock::Modifier_None;
+        this->modifier = LocationBlock::Modifier_none;
 
         this->index.push_back("index.html");
 
@@ -112,7 +113,7 @@ namespace we
         this->pattern = other.pattern;
         this->modifier = other.modifier;
         if (other.regex)
-            this->regex = new ft::Regex(this->pattern);
+            this->regex = new ft::Regex(this->pattern, this->modifier == LocationBlock::Modifier_regex_icase ? ft::Regex::iCase : 0);
         else
             this->regex = NULL;
         this->index = other.index;
@@ -259,12 +260,13 @@ namespace we
                     location_config.pattern = location_block->args[1];
                     if (location_block->args[0] == "=")
                         location_config.modifier = LocationBlock::Modifier_exact;
-                    else if (location_block->args[0] == "~")
+                    else if (location_block->args[0] == "~" || location_block->args[0] == "~*")
                     {
-                        location_config.modifier = LocationBlock::Modifier_regex;
+                        location_config.modifier = location_block->args[0] == "~*" ? LocationBlock::Modifier_regex_icase: LocationBlock::Modifier_regex;
+                        int flags = location_block->args[0] == "~*" ? ft::Regex::iCase : 0;
                         try
                         {
-                            location_config.regex = new ft::Regex(location_config.pattern);
+                            location_config.regex = new ft::Regex(location_config.pattern, flags);
                         }
                         catch(...)
                         {
@@ -277,7 +279,7 @@ namespace we
                 }
                 else
                 {
-                    location_config.modifier = LocationBlock::Modifier_None;
+                    location_config.modifier = LocationBlock::Modifier_none;
                     location_config.pattern = location_block->args[0];
                 }
 
