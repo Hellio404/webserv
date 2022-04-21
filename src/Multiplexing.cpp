@@ -244,4 +244,70 @@ namespace we
         return -1;
     }
 #endif
+
+    std::string get_instance_name()
+    {
+        #if defined(HAVE_EPOLL)
+            return "epoll";
+        #elif defined(HAVE_KQUEUE)
+            return "kqueue";
+        #elif defined(HAVE_POLL)
+            return "poll";
+        #elif defined(HAVE_SELECT)
+            return "select";
+        #else
+            return "unknown";
+        #endif
+    }
+
+    AMultiplexing *get_instance(Config::MultiplexingType type)
+    {
+        switch (type)
+        {
+        case Config::MulKqueue:
+        #if defined(HAVE_KQUEUE)
+            return new MultiplexingKqueue();
+        #else
+            break;
+        #endif
+        case Config::MulPoll:
+        #if defined(HAVE_POLL)
+            return new MultiplexingPoll();
+        #else
+            break;
+        #endif
+        case Config::MulEpoll:
+        #if defined(HAVE_EPOLL)
+            return new MultiplexingEpoll();
+        #else
+            break;
+        #endif
+        case Config::MulSelect:
+        #if defined(HAVE_SELECT)
+            return new MultiplexingSelect();
+        #else
+            break;
+        #endif
+        default:
+            break;
+        }
+    // TODO: print to logger
+    if (type == Config::MulNone)
+        std::cerr << "no 'use_events' option specified in config file, defaulting to " << get_instance_name() << std::endl;
+    else
+        std::cerr << "unsupported 'use_events' option specified in config file, defaulting to " << get_instance_name() << std::endl;
+    #if defined(HAVE_EPOLL)
+        return new MultiplexingEpoll();
+    #elif defined(HAVE_KQUEUE)
+        return new MultiplexingKqueue();
+    #elif defined(HAVE_EPOLL)
+        return new MultiplexingEpoll();
+    #elif defined(HAVE_POLL)
+        return new MultiplexingPoll();
+    #elif defined(HAVE_SELECT)
+        return new MultiplexingSelect();
+    #else
+        return NULL;
+    #endif
+    }
 }
