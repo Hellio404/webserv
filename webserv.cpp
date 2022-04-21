@@ -7,7 +7,7 @@
 #include <Regex.hpp>
 #include <fcntl.h>
 
-int main()
+int main(int ac, char **av)
 {
     we::Config config;
     we::AMultiplexing *multiplexing = new we::MultiplexingSelect();
@@ -21,8 +21,10 @@ int main()
         std::cerr << e.what() << std::endl;
         return 1;
     }
-
-    print_config_block_info(config);
+    we::ServerBlock first_server = config.server_blocks[config.server_blocks.begin()->first][0];
+    if (av[1])
+    std::cout << first_server.get_location(av[1])->pattern << std::endl;
+    // print_config_block_info(config);
 
     // int listen_fd, optval = 1;
     // struct sockaddr_in srv_addr;

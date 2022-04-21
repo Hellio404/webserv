@@ -43,8 +43,38 @@ namespace we
 
     const LocationBlock *ServerBlock::get_location(const std::string& uri) const
     {
-        // TODO: implement this
-        return NULL;
+
+        std::vector<LocationBlock>::const_iterator it = this->locations.begin();
+        const LocationBlock *regex = NULL;
+        const LocationBlock *normal = NULL;
+
+        for (; it != this->locations.end(); ++it)
+        {
+            switch (it->modifier)
+            {
+                case LocationBlock::Modifier_None:
+                    if (!regex && std::strncmp(it->pattern.c_str(), uri.c_str(), it->pattern.size()) == 0)
+                    {
+                        if (!normal || it->pattern.size() > normal->pattern.size())
+                            normal = &(*it);
+                    }
+                    break;
+                case LocationBlock::Modifier_exact:
+                    if (it->pattern == uri)
+                        return &(*it);
+                    break;
+                case LocationBlock::Modifier_regex:
+                    if (!regex && it->regex->test(uri))
+                        regex = &(*it);
+                    break;
+                default:
+                    break;
+            }
+            
+        }
+        if (regex)
+            return regex;
+        return normal;
     }
 
     LocationBlock::LocationBlock()
@@ -53,7 +83,7 @@ namespace we
         this->client_body_in_file = false;
         this->client_body_buffer_size = 4 * 1024;
         this->client_max_body_size = 16 * 1024 * 1024;
-
+        this->regex = NULL;
         this->pattern = "/";
         this->modifier = LocationBlock::Modifier_None;
 
@@ -65,6 +95,32 @@ namespace we
 
         this->autoindex = false;
         this->allow_upload = false;
+    }
+
+    LocationBlock::~LocationBlock()
+    {
+        if (this->regex)
+            delete this->regex;
+    }
+    LocationBlock::LocationBlock(LocationBlock const &other)
+    {
+        this->client_body_timeout = other.client_body_timeout;
+        this->client_body_in_file = other.client_body_in_file;
+        this->client_body_buffer_size = other.client_body_buffer_size;
+        this->client_max_body_size = other.client_max_body_size;
+        
+        this->pattern = other.pattern;
+        this->modifier = other.modifier;
+        if (other.regex)
+            this->regex = new ft::Regex(this->pattern);
+        else
+            this->regex = NULL;
+        this->index = other.index;
+        this->root = other.root;
+        this->autoindex = other.autoindex;
+        this->allow_upload = other.allow_upload;
+        this->upload_dir = other.upload_dir;
+        this->allowed_methods = other.allowed_methods;
     }
 
     bool    LocationBlock::is_allowed_method(std::string method) const
@@ -204,7 +260,18 @@ namespace we
                     if (location_block->args[0] == "=")
                         location_config.modifier = LocationBlock::Modifier_exact;
                     else if (location_block->args[0] == "~")
+                    {
                         location_config.modifier = LocationBlock::Modifier_regex;
+                        try
+                        {
+                            location_config.regex = new ft::Regex(location_config.pattern);
+                        }
+                        catch(...)
+                        {
+                            throw std::runtime_error("Invalid regex pattern in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
+                        }
+                        
+                    }
                     else
                         throw std::runtime_error("Invalid pattern modifier in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
                 }
