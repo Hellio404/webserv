@@ -1,22 +1,11 @@
 #include "ResponseServer.hpp"
 
-// class ResponseServerDirectory: public ResponseServer
-// {
-// protected:
-//     std::string     dir_path;
-//     std::string     response_buffer;
-
-//     void            load_directory_listing();
-
-// public:
-//     ResponseServerDirectory(std::string const&, bool);
-//     ssize_t&    get_next_data(std::string &, size_t, bool &);
-// };
-
 namespace we
 {
     ResponseServer::ResponseServer() {}
+
     ResponseServer::ResponseServer(bool to_chunk) : last_read_bytes(0), offset(0), to_chunk(to_chunk), ended(false) {}
+
     ResponseServer::~ResponseServer() {}
 
     void ResponseServer::recalculate_offset()
@@ -43,15 +32,54 @@ namespace we
         return this->last_read_bytes;
     }
 
-    // ResponseServerDirectory::ResponseServerDirectory(std::string const& path, bool to_chunk): ResponseServer(to_chunk)
-    // {
-    //     this->dir_path = path;
-    // }
+    ResponseServerDirectory::ResponseServerDirectory(std::string const& path, bool to_chunk): ResponseServer(to_chunk)
+    {
+        this->dir_path = path;
+        this->load_directory_listing();
+    }
 
-    // void    ResponseServerDirectory::load_directory_listing()
-    // {
-    // }
-    
+    void    ResponseServerDirectory::load_directory_listing()
+    {
+        DIR             *dir;
+        struct dirent   *dp;
+        struct tm       *tm;
+        struct stat     statbuf;
+        char            datestring[256];
+
+        this->response_buffer = "<!doctype html><html>"
+                                "<head><title>Index of /</title></head>"
+                                "<h1>Index of /</h1><hr><pre>";
+
+        if ((dir = opendir(this->dir_path.c_str())) == NULL)
+            throw std::runtime_error("Cannot open " + this->dir_path);
+
+        do {
+            if ((dp = readdir(dir)) == NULL)
+                continue;
+
+            if (!strcmp(dp->d_name, ".") || stat(dp->d_name, &statbuf) == -1)
+                continue ;
+
+            std::string tmp = dp->d_name;
+            if (S_ISDIR(statbuf.st_mode))
+                tmp += "/";
+
+            tm = localtime(&statbuf.st_mtime);
+            strftime(datestring, sizeof(datestring), "%d-%b-%Y %H:%M", tm);
+
+            std::stringstream   tofill;
+            tofill << "<a href=\"" + tmp + "\">" + tmp + "</a>";
+            tofill << std::setw(80 - tmp.size()) << datestring;
+            if (S_ISDIR(statbuf.st_mode) == 0)
+                tofill << std::setw(40) << (intmax_t)statbuf.st_size;
+            else
+                tofill << std::setw(40) << '-';
+
+            this->response_buffer += tofill.str() + "<br>";
+        } while (dp != NULL);
+
+        this->response_buffer += "</pre><hr></body></html>";
+    }
 
     ResponseServerFile::ResponseServerFile(std::string const &filep, bool to_chunk = false) : ResponseServer(to_chunk)
     {
