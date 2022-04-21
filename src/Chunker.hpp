@@ -20,6 +20,8 @@ namespace we
         std::string     data_buffer;
         size_t          data_buffer_size;
         size_t          file_size;
+        bool            need_digit;
+        bool            skip_to_lf;
 
     public:
         ChunckReader(std::fstream &f, size_t buffer_size);
