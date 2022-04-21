@@ -12,34 +12,34 @@ namespace we
 {
     class ResponseServer
     {
-    protected:
-        ssize_t last_read_bytes;
-        ssize_t offset;
-        bool to_chunk;
-        bool ended;
-        std::string buffer;
-        size_t data_start;
-        size_t data_end;
-
         ResponseServer();
+    protected:
+        ssize_t     last_read_bytes;
+        ssize_t     offset;
+        ssize_t     buffer_offset;
+        bool        to_chunk;
+        bool        ended;
+        std::string internal_buffer;
+
 
     public:
         ResponseServer(bool);
         virtual ~ResponseServer();
 
-        virtual ssize_t &get_next_data(std::string &, size_t, bool &) = 0;
+        ssize_t &get_next_data(std::string &, size_t, bool &) ;
+        virtual ssize_t &load_next_data(std::string &, size_t, bool &) = 0;
         ssize_t &transform_data(std::string &);
-        void recalculate_offset();
     };
 
     class ResponseServerFile : public ResponseServer
     {
         std::ifstream file;
         std::string file_path;
+        unsigned int error_code;
 
     public:
-        ResponseServerFile(std::string const &, bool);
-        ssize_t &get_next_data(std::string &buffer, size_t size, bool &ended);
+        ResponseServerFile(std::string const &, unsigned int error_code, bool = false);
+        ssize_t &load_next_data(std::string &buffer, size_t size, bool &ended);
     };
 
     class ResponseServerDirectory : public ResponseServer
@@ -52,6 +52,6 @@ namespace we
 
     public:
         ResponseServerDirectory(std::string const &, bool);
-        ssize_t &get_next_data(std::string &, size_t, bool &);
+        ssize_t &load_next_data(std::string &, size_t, bool &);
     };
 }
