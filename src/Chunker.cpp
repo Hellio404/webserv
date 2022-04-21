@@ -1,6 +1,5 @@
 
 #include "Chunker.hpp"
-
 namespace we
 {
     ChunckReader::ChunckReader(std::fstream &f, size_t buffer_size) : file(f), data_buffer_size(buffer_size)
@@ -132,7 +131,7 @@ namespace we
 
     void ChunckReader::get_next_chunked_size(const char *it, const char *end)
     {
-        while (it != end && *it != ';')
+        while (it != end && *it != ';' && !(*it == '\r' && *(it + 1) == '\n'))
         {
             if (!isxdigit(*it))
                 throw std::runtime_error("Invalid chunk size");
