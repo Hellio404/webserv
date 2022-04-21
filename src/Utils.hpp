@@ -20,7 +20,7 @@ namespace we
     bool                        is_protocol_supported(const std::string &protocol);
     bool                        is_method_supported(const std::string &method);
     template<class  T>
-    std::string                 to_string(T val)
+    std::string                 to_string(T const & val)
     {
         std::ostringstream ss;
         ss << val;
