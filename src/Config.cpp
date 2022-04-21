@@ -64,9 +64,6 @@ namespace we
                         return &(*it);
                     break;
                 case LocationBlock::Modifier_regex:
-                    if (!regex && it->regex->test(uri))
-                        regex = &(*it);
-                    break;
                 case LocationBlock::Modifier_regex_icase:
                     if (!regex && it->regex->test(uri))
                         regex = &(*it);
