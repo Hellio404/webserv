@@ -194,7 +194,7 @@ namespace we
         }
     }
 
-    static void validate_server_config(ServerBlock *server_config)
+    static void validate_server_config(ServerBlock *server_config, directive_block *root_block, directive_block *server_block)
     {
         std::set<std::pair<std::string, LocationBlock::Modifier> > locations;
 
@@ -204,6 +204,13 @@ namespace we
             if (locations.count(location))
                 throw std::runtime_error("conflicting location pattern \"" + lb_it->pattern + "\" on " + server_config->listen_addr);
             locations.insert(location);
+        }
+
+        if (locations.count(std::make_pair("/", LocationBlock::Modifier_none)) == 0)
+        {
+            LocationBlock location_config;
+            init_location_directives(location_config, root_block, server_block, NULL);
+            server_config->locations.push_back(location_config);
         }
     }
 
@@ -230,7 +237,7 @@ namespace we
             if (it->name == "server")
             {
                 if (current_server_config != NULL)
-                    validate_server_config(current_server_config);
+                    validate_server_config(current_server_config, root_block, server_block);
 
                 server_block = &(*it);
                 location_block = NULL;
@@ -289,7 +296,7 @@ namespace we
         }
 
         if (current_server_config != NULL)
-            validate_server_config(current_server_config);
+            validate_server_config(current_server_config, root_block, server_block);
         validate_config(config);
 
         return true;
