@@ -82,10 +82,16 @@ namespace we
     {
         if (this->status == Connection::Read)
         {
-            // todo check if client_remaining_data is not empty then read from it instead/
+            // TODO: check if client_remaining_data is not empty then read from it instead/
             // of recv (Keep-Alive)
             ssize_t recv_ret = recv(this->client_sock, this->client_headers_buffer, 4096, 0);
+
             std::cerr << "recv_ret: " << recv_ret << std::endl;
+            if (recv_ret <= 0)
+            {
+                std::cerr << "Connection closed by peer\n" << std::endl;
+                goto close_connection;
+            }
             // TODO: handle error
             char *buffer_ptr = this->client_headers_buffer;
             if (!this->client_started_header)
@@ -100,16 +106,44 @@ namespace we
                 if (!this->parse_path(this->req_headers["@path"]))
                 {
                     //TODO: handle error
-                    std::cerr << "Bad Request" << std::endl;
+                    std::cerr << "-------- Bad Request" << std::endl;
+                    goto close_connection;
+
                 }
-                this->check_potential_body(this->req_headers);
+                if (this->req_headers["host"].size() == 0)
+                {
+                    std::cerr << "-------- Bad Request" << std::endl;
+                    goto close_connection;
+                }
+
                 this->client_headers.clear();
+                this->check_potential_body(this->req_headers);  // TODO: later
                 this->status = Connection::Write;
+
                 this->multiplexing.remove(this->client_sock);
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
-                print_headers();
+                this->server = config.get_server_block(this->connected_socket, this->req_headers["host"]);
+                this->location = this->server->get_location(this->req_headers["@expanded_url"]);
+                std::cerr << "Location: "<< location->pattern << std::endl;
+                std::cerr << "FullPath: " << get_file_fullpath(this->location->root, req_headers["@expanded_url"]);
+                // print_headers();
             }
         }
+        else
+        {
+            char buffer[] = "HTTP/1.1 200 OK\r\nContent-Length: 11\r\nConnection: Close\r\n\r\nHello World";
+            ssize_t ret = send(this->client_sock,buffer, sizeof(buffer) - 1, 0);
+            std::cerr << ret << " bytes sent" << std::endl;
+            
+            goto close_connection;
+            return ;
+        }
+    return ;
+    close_connection:
+        close(this->client_sock);
+        this->multiplexing.remove(this->client_sock);
+        delete this;
+        return ;
 
     }
 
@@ -186,6 +220,12 @@ namespace we
             return;
         }
         this->check_for_absolute_uri();
+        
+        if (this->req_headers["@path"][0] != '/')
+        {
+            std::cerr << "400 bad request" << std::endl;
+            return ;
+        }
 
         it = find_first_not(curr_end, end, " \t\r");
         curr_end = find_first_of(it, end, " \t\r\n");
