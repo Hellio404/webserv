@@ -2,8 +2,7 @@
 
 namespace we
 {
-
-    std::string get_default_error_str(unsigned int error_code)
+    static std::string get_default_error_str(unsigned int error_code)
     {
         const char *error_str = "<html>\n"
                                 "<head><title>%1$d %2$s</title></head>\n"
@@ -12,7 +11,7 @@ namespace we
                                 "<hr><center>BetterNginx/0.69.420 (HEAVEN)</center>\n"
                                 "</body>\n"
                                 "</html>\n";
-        // TODO: add more error codes
+
         char buffer[2048];
         switch (error_code)
         {
@@ -22,6 +21,9 @@ namespace we
         case 401:
             sprintf(buffer, error_str, 401, "Unauthorized");
             break;
+        case 402:
+            sprintf(buffer, error_str, 402, "Payment Required");
+            break;
         case 403:
             sprintf(buffer, error_str, 403, "Forbidden");
             break;
@@ -30,6 +32,42 @@ namespace we
             break;
         case 405:
             sprintf(buffer, error_str, 405, "Method Not Allowed");
+            break;
+        case 406:
+            sprintf(buffer, error_str, 406, "Not Acceptable");
+            break;
+        case 407:
+            sprintf(buffer, error_str, 407, "Proxy Authentication Required");
+            break;
+        case 408:
+            sprintf(buffer, error_str, 408, "Request Timeout");
+            break;
+        case 409:
+            sprintf(buffer, error_str, 409, "Conflict");
+            break;
+        case 410:
+            sprintf(buffer, error_str, 410, "Gone");
+            break;
+        case 411:
+            sprintf(buffer, error_str, 411, "Length Required");
+            break;
+        case 412:
+            sprintf(buffer, error_str, 412, "Precondition Failed");
+            break;
+        case 413:
+            sprintf(buffer, error_str, 413, "Request Entity Too Large");
+            break;
+        case 414:
+            sprintf(buffer, error_str, 414, "Request-URI Too Long");
+            break;
+        case 415:
+            sprintf(buffer, error_str, 415, "Unsupported Media Type");
+            break;
+        case 416:
+            sprintf(buffer, error_str, 416, "Requested Range Not Satisfiable");
+            break;
+        case 417:
+            sprintf(buffer, error_str, 417, "Expectation Failed");
             break;
         case 500:
             sprintf(buffer, error_str, 500, "Internal Server Error");
@@ -43,6 +81,12 @@ namespace we
         case 503:
             sprintf(buffer, error_str, 503, "Service Unavailable");
             break;
+        case 504:
+            sprintf(buffer, error_str, 504, "Gateway Timeout");
+            break;
+        case 505:
+            sprintf(buffer, error_str, 505, "HTTP Version Not Supported");
+            break;
         default:
             throw std::runtime_error("no default error string for this error code");
         }
@@ -53,7 +97,6 @@ namespace we
     last_read_bytes(0), offset(0), to_chunk(to_chunk), ended(false), buffer_offset(0) {}
 
     ResponseServer::~ResponseServer() {}
-
 
     ssize_t &ResponseServer::transform_data(std::string &buffer)
     {
@@ -68,14 +111,26 @@ namespace we
             buffer.append("0\r\n\r\n");
         return this->last_read_bytes;
     }
+
     ssize_t &ResponseServerDirectory::load_next_data(std::string &buffer, size_t size, bool &ended)
     {
+        if (this->ended)
+            throw std::runtime_error("Directory response ended");
 
+        char _buffer[size + 1];
+        size_t read_bytes = std::min(this->response_buffer.size() - this->offset, size);
+        memcpy(_buffer, this->response_buffer.c_str() + this->offset, read_bytes);
+        _buffer[read_bytes] = '\0';
+        buffer.assign(_buffer, read_bytes);
+        this->offset += read_bytes;
+        if (this->offset == this->response_buffer.size())
+            this->ended = true;
+        return this->transform_data(buffer);
     }
 
-
-    ResponseServerDirectory::ResponseServerDirectory(std::string const& path, bool to_chunk): ResponseServer(to_chunk)
+    ResponseServerDirectory::ResponseServerDirectory(std::string const& path, std::string const& location, bool to_chunk): ResponseServer(to_chunk)
     {
+        this->location = location;
         this->dir_path = path;
         this->load_directory_listing();
     }
@@ -88,9 +143,9 @@ namespace we
         struct stat     statbuf;
         char            datestring[256];
 
-        this->response_buffer = "<!doctype html><html>"
-                                "<head><title>Index of /</title></head>"
-                                "<h1>Index of /</h1><hr><pre>";
+        this->response_buffer = "<!doctype html><html><head>"
+                                "<title>Index of " + this->location + "</title></head>"
+                                "<h1>Index of " + this->location + "</h1><hr><pre>";
 
         if ((dir = opendir(this->dir_path.c_str())) == NULL)
             throw std::runtime_error("Cannot open " + this->dir_path);
@@ -99,7 +154,9 @@ namespace we
             if ((dp = readdir(dir)) == NULL)
                 continue;
 
-            if (!strcmp(dp->d_name, ".") || stat(dp->d_name, &statbuf) == -1)
+            std::string filepath = this->dir_path + "/" + dp->d_name;
+
+            if (!strcmp(dp->d_name, ".") || stat(filepath.c_str(), &statbuf) == -1)
                 continue ;
 
             std::string tmp = dp->d_name;
@@ -117,7 +174,7 @@ namespace we
             else
                 tofill << std::setw(40) << '-';
 
-            this->response_buffer += tofill.str() + "<br>";
+            this->response_buffer += tofill.str() + "\n";
         } while (dp != NULL);
 
         this->response_buffer += "</pre><hr></body></html>";
@@ -140,19 +197,15 @@ namespace we
             this->buffer_offset = 0;
         }
         else
-        {
             buffer = this->internal_buffer.substr(this->buffer_offset, size);
-            if (this->ended)
-                ended = true;
-        }
         return this->last_read_bytes;
     }
 
     ResponseServerFile::ResponseServerFile(std::string const &filep, unsigned int error_code, bool to_chunk) : ResponseServer(to_chunk)
     {
-        file_path = filep;
-        file.open(file_path.c_str(), std::ifstream::in);
-        if (!file.is_open())
+        this->file_path = filep;
+        this->file.open(this->file_path.c_str(), std::ifstream::in);
+        if (!this->file.is_open())
         {
             this->ended = true;
             this->internal_buffer = get_default_error_str(error_code);
@@ -174,10 +227,7 @@ namespace we
         buffer.assign(_buffer, this->file.gcount());
         this->offset += this->file.gcount();
         if (this->file.eof())
-        {
             this->ended = true;
-            ended = true;
-        }
         if (!this->file.eof() && !this->file.good())
             throw std::runtime_error("Unable to read file");
         return this->transform_data(buffer);
