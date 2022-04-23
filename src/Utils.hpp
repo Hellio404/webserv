@@ -19,6 +19,8 @@ namespace we
     std::string                 decode_percent(const std::string &str);
     bool                        is_protocol_supported(const std::string &protocol);
     bool                        is_method_supported(const std::string &method);
+    std::string                 to_hex(size_t number);
+
     template<class  T>
     std::string                 to_string(T const & val)
     {

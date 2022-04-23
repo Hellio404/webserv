@@ -7,15 +7,19 @@ namespace we
     {
         data_buffer.reserve(data_buffer_size);
         wait_for_size = true;
+        need_digit = true;
         skip_crlf = false;
         skip_lf = false;
         skip_to_crlf = false;
+        skip_to_lf = false;
     }
 
     bool ChunckReader::add_to_chunk(const char *buffer, const char *end)
     {
         while (buffer != end)
         {
+            if (!wait_for_size && need_digit)
+                throw std::runtime_error("Invalid size.");
             if (wait_for_size)
                 add_to_chunksize(buffer, end);
             else if (next_chunk_size > 0)
@@ -79,6 +83,7 @@ namespace we
         {
             skip_crlf = true;
             wait_for_size = true;
+            need_digit = true;
         }
         if (next_chunk_size == 0 || data_buffer.size() >= data_buffer_size)
         {
@@ -110,12 +115,24 @@ namespace we
         if (skip_crlf || skip_lf)
             throw std::runtime_error("Expected CRLF");
         const char *newline = reinterpret_cast<const char *>(memchr(buffer, '\n', end - buffer));
-        if (!newline)
+        if (!newline && !skip_to_lf)
         {
             if (!skip_to_crlf)
                 this->get_next_chunked_size(buffer, end);
             // change the buffer to the end of the buffer
             buffer = end;
+        }
+        else if (skip_to_lf)
+        {
+            if (newline)
+            {
+                buffer = newline + 1;
+                skip_to_lf = false;
+                skip_to_crlf = false;
+                wait_for_size = false;
+            }
+            else
+                throw std::runtime_error("Expected LF");
         }
         else
         {
@@ -132,17 +149,20 @@ namespace we
 
     void ChunckReader::get_next_chunked_size(const char *it, const char *end)
     {
-        while (it != end && *it != ';')
+        while (it != end && *it != ';' && *it != '\r')
         {
             if (!isxdigit(*it))
                 throw std::runtime_error("Invalid chunk size");
+            need_digit = false;
             this->next_chunk_size *= 16;
             this->next_chunk_size += char_to_hex(*it);
             if (next_chunk_size > max_chunk_size)
                 throw std::runtime_error("Chunk size too big");
             it++;
         }
-        if (it != end)
+        if (it != end && *it == '\r')
+            skip_to_lf = true;
+        else if (it != end)
             skip_to_crlf = true;
     }
 
@@ -155,8 +175,6 @@ namespace we
     {
         return this->file_size;
     }
-
-
 
     ChunckReader::~ChunckReader() {}
 } // namespace we
