@@ -87,11 +87,14 @@ namespace we
       return 0;
   }
 
-  static std::string generate_etag(struct stat *st)
+  static void set_file_metadata(Connection *con, struct stat *st)
   {
-      std::stringstream ss;
-      ss << "\"" << std::hex << st->st_mtime << "-" << std::hex << st->st_size << "\"";
-      return ss.str();
+    if (st == NULL)
+      return;
+
+    if (con->etag.empty())
+      con->etag = "\"" + we::to_hex(st->st_mtime) + "-" + we::to_hex(st->st_size) + "\"";
+    con->last_modified = st->st_mtime * 1000;
   }
 
   int conditional_handler(Connection *con)
@@ -105,9 +108,7 @@ namespace we
     if (stat(requested_resource.c_str(), &st) != 0 || S_ISDIR(st.st_mode))
       return 0;
 
-    con->etag = generate_etag(&st);
-    con->last_modified
-
+    set_file_metadata(con, &st);
     if (con->req_headers.count("If-Unmodified-Since") && !test_if_unmodified(con, &st))
     {
       con->response_type = Connection::ResponseType_File;

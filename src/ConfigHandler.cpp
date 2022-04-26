@@ -467,8 +467,15 @@ namespace we
         location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
         location_config.handlers[Phase_Access].push_back(&we::index_handler);
         location_config.handlers[Phase_Access].push_back(&we::autoindex_handler);
+
+        // File related handlers
+        location_config.handlers[Phase_Access].push_back(&we::conditional_handler);
         location_config.handlers[Phase_Access].push_back(&we::file_handler);
+
+        // Error handlers
         location_config.handlers[Phase_Access].push_back(&we::post_access_handler);
+
+        // Logging handlers
         location_config.handlers[Phase_Logging].push_back(&we::logger_handler);
     }
 
