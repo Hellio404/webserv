@@ -101,6 +101,7 @@ namespace we
 
             if (end)
             {
+                this->expanded_url = this->req_headers["@expanded_url"]; // Extract the expanded url
                 this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
 
                 // this->check_potential_body();
@@ -108,9 +109,10 @@ namespace we
 
                 this->multiplexing.remove(this->client_sock);
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
-                this->server = config.get_server_block(this->connected_socket, this->req_headers["host"]);
-                this->location = this->server->get_location(this->req_headers["@expanded_url"]);
-                this->req_headers["@requested_resource"] = get_file_fullpath(this->location->root, req_headers["@expanded_url"]);
+                this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
+                this->location = this->server->get_location(this->expanded_url);
+                this->requested_resource = we::get_file_fullpath(this->location->root, this->expanded_url);
+
                 this->get_info_headers();
             }
         }
@@ -127,7 +129,7 @@ namespace we
                 try
                 {
                     if (this->response_type == Connection::ResponseType_File)
-                        this->response_server =  new we::ResponseServerFile(this);
+                        this->response_server = new we::ResponseServerFile(this);
                     else if (this->response_type == Connection::ResponseType_Directory)
                         this->response_server = new ResponseServerDirectory(this);
                     else if (this->response_type == ResponseType_RangeFile)
@@ -143,31 +145,21 @@ namespace we
                     std::cerr << e.what() << std::endl;
                     goto close_connection;
                 }
-                
             }
 
             std::string buffer;
             bool ended = false;
             ssize_t &sended_bytes = this->response_server->get_next_data(buffer, ended);
             if (ended)
-            {
                 goto finish_connection;
-                std::cerr << "ended" << std::endl;
-            }
-            start_recording(6, (char *)"sending data");
             ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
-            stop_recording(6);
             if (ret <= 0)
-            {
                 goto close_connection;
-            }
             sended_bytes = ret;
-            // std::cerr << "sended_bytes: " << sended_bytes << std::endl;
         }
 
         return;
     finish_connection:
-        // shutdown(this->client_sock, SHUT_WR);
         this->multiplexing.remove(this->client_sock);
         if (this->keep_alive == false)
         {

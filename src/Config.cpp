@@ -11,6 +11,8 @@ namespace we
         this->client_header_buffer_size = 4 * 1024;
         this->client_max_header_size = 16 * 1024 * 1024;
         this->max_internal_redirect = 10;
+
+        this->default_type = "application/octet-stream";
     }
 
     const ServerBlock   *Config::get_server_block(int socket, const std::string &host) const
@@ -31,6 +33,22 @@ namespace we
         return &pos->second.front();
     }
 
+    std::string         Config::get_mime_type(const std::string &filepath) const
+    {
+        std::string::size_type pos = filepath.rfind('.');
+
+        if (pos == std::string::npos)
+            return this->default_type;
+
+        std::string ext = filepath.substr(pos + 1);
+        std::map<std::string, std::string>::const_iterator it = this->mime_types.find(ext);
+
+        if (it != this->mime_types.end())
+            return it->second;
+
+        return this->default_type;
+    }
+
     ServerBlock::ServerBlock()
     {
         this->listen_socket = -1;
@@ -44,7 +62,6 @@ namespace we
 
     const LocationBlock *ServerBlock::get_location(const std::string& uri) const
     {
-
         std::vector<LocationBlock>::const_iterator it = this->locations.begin();
         const LocationBlock *regex = NULL;
         const LocationBlock *normal = NULL;
@@ -72,7 +89,6 @@ namespace we
                 default:
                     break;
             }
-            
         }
         if (regex)
             return regex;
@@ -114,13 +130,14 @@ namespace we
         this->client_body_in_file = other.client_body_in_file;
         this->client_body_buffer_size = other.client_body_buffer_size;
         this->client_max_body_size = other.client_max_body_size;
-        
+
         this->pattern = other.pattern;
         this->modifier = other.modifier;
         if (other.regex)
             this->regex = new ft::Regex(this->pattern, this->modifier == LocationBlock::Modifier_regex_icase ? ft::Regex::iCase : 0);
         else
             this->regex = NULL;
+
         this->index = other.index;
         this->root = other.root;
         this->autoindex = other.autoindex;
@@ -294,7 +311,7 @@ namespace we
                         {
                             location_config.regex = new ft::Regex(location_config.pattern, flags);
                         }
-                        catch(...)
+                        catch (...)
                         {
                             throw std::runtime_error("Invalid regex pattern in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
                         }

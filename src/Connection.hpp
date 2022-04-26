@@ -7,6 +7,9 @@
 #include "Utils.hpp"
 #include "Date.hpp"
 #include "ResponseServer.hpp"
+#include "HeaderParser.hpp"
+#include "Response/Handler.hpp"
+
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdexcept>
@@ -14,8 +17,6 @@
 #include <istream>
 #include <ostream>
 #include <vector>
-#include "HeaderParser.hpp"
-#include "Response/Handler.hpp"
 
 namespace we
 {
@@ -29,8 +30,10 @@ namespace we
     {
     private:
         typedef unsigned long long ull;
+
     public:
-        enum Status {
+        enum Status
+        {
             Read,
             Write,
             Idle,
@@ -57,9 +60,9 @@ namespace we
         int                                                                 client_sock;
         struct sockaddr_storage                                             client_addr;
         socklen_t                                                           client_addr_len;
-        bool                                                                client_started_header;
         std::string                                                         client_addr_str;
-    
+        bool                                                                client_started_header;
+
         const Config                                                        &config;
         AMultiplexing                                                       &multiplexing;
         EventLoop                                                           &loop;
@@ -70,7 +73,6 @@ namespace we
 
         const ServerBlock*                                                  server;
         const LocationBlock*                                                location;
-
 
 
         long long                                                           client_content_length;
@@ -95,10 +97,8 @@ namespace we
 
         unsigned int                                                        redirect_count;
 
-        // std::istream                                                        requested_file;
-        std::string                                                         requested_filepath;
-
-        // std::ostream                                                        body_file;
+        std::string                                                         expanded_url;
+        std::string                                                         requested_resource;
 
         std::string                                                         start_line;
         std::map<std::string, std::string, LessCaseInsensitive>             req_headers;

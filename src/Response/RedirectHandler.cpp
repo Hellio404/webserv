@@ -5,14 +5,14 @@ namespace we
 {
     int redirect_handler(Connection *con)
     {
-        std::string &requested_resource = con->req_headers["@requested_resource"];
+        std::string &requested_resource = con->requested_resource;
         if (con->location->is_redirection == false)
         {
             struct stat st;
             if (requested_resource.size() && requested_resource[requested_resource.size() - 1] != '/' &&
                 stat(requested_resource.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
             {
-                std::string location = "http://" + con->req_headers["Host"] + con->req_headers["@expanded_url"] + "/";
+                std::string location = "http://" + con->req_headers["Host"] + con->expanded_url + "/";
 
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("Location", location));
@@ -21,7 +21,7 @@ namespace we
 
                 con->keep_alive = false;
 
-                con->req_headers["@requested_resource"] = "";
+                con->requested_resource = "";
                 return 1;
             }
 
@@ -44,7 +44,7 @@ namespace we
 
         con->keep_alive = false;
 
-        con->req_headers["@requested_resource"] = "";
+        con->requested_resource = "";
         return 1;
     }
 }
