@@ -90,7 +90,7 @@ namespace we
 
     ResponseServerFile::ResponseServerFile(Connection *con) : ResponseServer(con)
     {
-        this->file.open(con->req_headers["@requested_resource"].c_str(), std::ifstream::in | std::ifstream::binary);
+        this->file.open(con->requested_resource.c_str(), std::ifstream::in | std::ifstream::binary);
         con->to_chunk = false;
         if (!this->file.is_open() && this->status_code / 100 > 2)
         {
@@ -142,7 +142,7 @@ namespace we
         if (con->ranges.size() < 2)
             throw std::runtime_error("Expected at least 2 ranges");
 
-        this->file.open(con->req_headers["@requested_resource"].c_str(), std::ifstream::in | std::ifstream::binary);
+        this->file.open(con->requested_resource.c_str(), std::ifstream::in | std::ifstream::binary);
         if (!this->file.is_open())
             throw std::runtime_error("Unable to open file");
     
@@ -220,8 +220,8 @@ namespace we
 
     ResponseServerDirectory::ResponseServerDirectory(Connection *con): ResponseServer(con)
     {
-        this->location = con->req_headers["@requested_resource"];
-        this->dir_path = con->req_headers["@expanded_url"];
+        this->location = con->expanded_url;
+        this->dir_path = con->requested_resource;
         this->offset = 0;
         this->load_directory_listing();
         this->internal_buffer = this->make_response_header(this->connection->res_headers);
@@ -305,7 +305,7 @@ namespace we
 
         if (con->ranges.size() != 1)
             throw std::runtime_error("Expected one range");
-         this->file.open(con->req_headers["@requested_resource"].c_str(), std::ifstream::in | std::ifstream::binary);
+         this->file.open(con->requested_resource.c_str(), std::ifstream::in | std::ifstream::binary);
         if (!this->file.is_open())
             throw std::runtime_error("Unable to open file");
 

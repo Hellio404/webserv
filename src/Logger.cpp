@@ -33,7 +33,7 @@ namespace we
 
         this->accessLog << connection->client_addr_str
                         << " - - [" << this->prettyDateTime() << "] \""
-                        << connection->req_headers["@method"] << " " << connection->req_headers["@expanded_url"] << " HTTP/1.1"
+                        << connection->req_headers["@method"] << " " << connection->expanded_url << " HTTP/1.1"
                         << "\" " << status_code << " " << bytes_sent << " \"" << http_referer << "\" \""
                         << http_user_agent << "\"" << std::endl;
     }
@@ -43,7 +43,7 @@ namespace we
         if (this->isErrorLogOpen)
             this->errorLog  << connection->client_addr_str
                             << " - - [ " << this->prettyDateTime() << " ] \""
-                            << connection->req_headers["@method"] << " " << connection->req_headers["@expanded_url"] << " HTTP/1.1"
+                            << connection->req_headers["@method"] << " " << connection->expanded_url << " HTTP/1.1"
                             << "\" - - \"( -- )\"" << std::endl;
     }
 

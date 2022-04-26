@@ -121,7 +121,7 @@ namespace we
 
     int file_handler(Connection *con)
     {
-        std::string &requested_resource = con->req_headers["@requested_resource"];
+        std::string &requested_resource = con->requested_resource;
 
         if (con->response_type != Connection::ResponseType_None)
             return 1;
@@ -138,7 +138,7 @@ namespace we
             con->content_length = st.st_size;
             con->etag = "\"" + we::to_string(st.st_mtime) + "-" + content_length + "-" + we::to_string(st.st_size) + "\"";
             con->last_modified = st.st_mtime * 1000;
-            con->mime_type = "application/octet-stream"; // TODO: detect mime type
+            con->mime_type = con->config.get_mime_type(requested_resource);
 
             if (con->req_headers.count("Range") && con->req_headers["Range"] != "")
             {
@@ -156,7 +156,7 @@ namespace we
                     con->res_headers.insert(std::make_pair("@response_code", "416"));
                     con->res_headers.insert(std::make_pair("@handler", "file_handler/range"));
                     con->res_headers.insert(std::make_pair("@file", requested_resource));
-                    con->req_headers["@requested_resource"] = con->location->get_error_page(416); // TODO: recalculate length
+                    con->requested_resource = con->location->get_error_page(416); // TODO: recalculate length
                     return 1;
                 }
             }

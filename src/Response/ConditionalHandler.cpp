@@ -97,7 +97,7 @@ namespace we
   int conditional_handler(Connection *con)
   {
     struct stat st;
-    std::string &requested_resource = con->req_headers["@requested_resource"];
+    std::string &requested_resource = con->requested_resource;
 
     if (con->response_type != Connection::ResponseType_None)
       return 0;
@@ -112,7 +112,7 @@ namespace we
     {
       con->response_type = Connection::ResponseType_File;
       con->res_headers.insert(std::make_pair("@response_code", "412"));
-      con->req_headers["@requested_resource"] = con->location->get_error_page(412);
+      con->requested_resource = con->location->get_error_page(412);
       return 1;
     }
 
@@ -120,7 +120,7 @@ namespace we
     {
       con->response_type = Connection::ResponseType_File;
       con->res_headers.insert(std::make_pair("@response_code", "412"));
-      con->req_headers["@requested_resource"] = con->location->get_error_page(412);
+      con->requested_resource = con->location->get_error_page(412);
       return 1;
     }
 
@@ -134,7 +134,7 @@ namespace we
 
       con->response_type = Connection::ResponseType_File;
       con->res_headers.insert(std::make_pair("@response_code", "403"));
-      con->req_headers["@requested_resource"] = con->location->get_error_page(403);
+      con->requested_resource = con->location->get_error_page(403);
       return 1;
     }
 

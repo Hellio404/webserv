@@ -318,7 +318,7 @@ namespace we
             }
         }
     }
-    
+
     static void handle_return(LocationBlock &location_config, directive_data const &data)
     {
         std::string ret_value = data.args.front();
@@ -331,7 +331,6 @@ namespace we
         location_config.redirect_url = data.args.back();
         location_config.is_redirection = true;
     }
-   
 
     static directive_data *get_directive_data(const std::string &name, directive_block *root, directive_block *server, directive_block *location)
     {
@@ -359,7 +358,7 @@ namespace we
     {
         static const directive_dispatch dispatcher[] = {
             { "use_events", NULL, 0 },
-            { "default_type", NULL, 0 }, // TODO: 
+            { "default_type", &we::set_string_directive, OFFSET_OF(Config, default_type) },
             { "client_header_timeout", &we::set_time_directive, OFFSET_OF(Config, client_header_timeout) },
             { "client_max_header_size", &we::set_size_directive, OFFSET_OF(Config, client_max_header_size) },
             { "client_header_buffer_size", &we::set_size_directive, OFFSET_OF(Config, client_header_buffer_size) },
@@ -426,7 +425,7 @@ namespace we
         static const directive_dispatch dispatcher[] = {
             { "root", &we::set_string_directive, OFFSET_OF(LocationBlock, root) },
             { "index", NULL, 0 },
-            { "error_page", NULL, 0},
+            { "error_page", NULL, 0 },
             { "autoindex", &we::set_boolean_directive, OFFSET_OF(LocationBlock, autoindex) },
             { "allow_upload", &we::set_boolean_directive, OFFSET_OF(LocationBlock, allow_upload) },
             { "upload_dir", &we::set_string_directive, OFFSET_OF(LocationBlock, upload_dir) },
@@ -437,7 +436,6 @@ namespace we
             { "client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size) },
             { "client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size) },
             { "return", NULL , 0 },
-            
         };
 
         for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)

@@ -1,25 +1,23 @@
 #pragma once
 
+#include "Regex.hpp"
+#include "Parser.hpp"
+#include "Response/Handler.hpp"
 
-
-#include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <algorithm>
 #include <netdb.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <climits>
-#include <algorithm>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <map>
-#include "Regex.hpp"
-#include "Parser.hpp"
-#include "Response/Handler.hpp"
+
 #define OFFSET_OF(type, member) ((size_t)&(((type*)0)->member))
-
-
 
 namespace we
 {
@@ -148,19 +146,23 @@ namespace we
 
     public:
         MultiplexingType                                                multiplex_type;
+
         unsigned int                                                    max_internal_redirect;
         long long                                                       client_header_timeout;
         long long                                                       client_header_buffer_size;
         long long                                                       client_max_header_size;
 
+        std::map<std::string, std::string>                              mime_types;
+        std::string                                                     default_type;
+
         std::map<int, std::vector<ServerBlock> >                        server_blocks;
         std::map<sockaddr, int, ComparSockAddr>                         server_socks;
-        std::map<std::string, std::string>                              mime_types;
 
     public:
         Config();
 
         const ServerBlock*        get_server_block(int socket, const std::string &host) const;
+        std::string               get_mime_type(const std::string &) const;
     };
 
     void        init_config();
@@ -174,4 +176,5 @@ namespace we
     void        print_config_block_info(const Config & val);
 
 } // namespace we
+
 #include "Connection.hpp"
