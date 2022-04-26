@@ -1,9 +1,13 @@
 NAME    = webserv
 CC      = clang++
-FLAGS   = -g -fsanitize=address -I. -I./src -I./$(REGEX_PATH)includes #-Wall -Wextra -Werror
-HEADS   = src/Chunker.hpp src/Config.hpp src/Connection.hpp src/Date.hpp src/EventLoop.hpp src/FileUtility.hpp src/Multiplexing.hpp src/Parser.hpp src/Utils.hpp 
+FLAGS   = -I. -I./src -I./$(REGEX_PATH)includes #-fsanitize=address -g#-Wall -Wextra -Werror
+HEADS   = src/Chunker.hpp src/Config.hpp src/Connection.hpp src/Date.hpp src/EventLoop.hpp src/FileUtility.hpp src/Multiplexing.hpp src/Parser.hpp src/Utils.hpp \
+			src/HeaderParser.hpp src/Response/Handler.hpp src/Logger.hpp
 SRCS = src/Chunker.cpp src/Config.cpp src/ConfigHandler.cpp src/Connection.cpp src/Date.cpp \
-	 src/EventLoop.cpp src/FileUtility.cpp src/Multiplexing.cpp src/Parser.cpp src/Utils.cpp webserv.cpp
+	 src/EventLoop.cpp src/FileUtility.cpp src/Multiplexing.cpp src/Parser.cpp src/Utils.cpp webserv.cpp\
+	 src/HeaderParser.cpp src/ResponseServer.cpp src/Response/LoggerHandler.cpp \
+	 src/Response/PostAccessHandler.cpp src/Response/IndexHandler.cpp src/Response/AutoIndexHandler.cpp\
+	 src/Response/FileHandler.cpp src/Response/RedirectHandler.cpp src/Logger.cpp
 OBJS = $(SRCS:.cpp=.o)
 REGEX = RegexEngine/libregex.a
 REGEX_PATH = RegexEngine/

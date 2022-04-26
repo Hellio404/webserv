@@ -260,7 +260,7 @@ namespace we
         #endif
     }
 
-    AMultiplexing *get_instance(Config::MultiplexingType type)
+    AMultiplexing *get_instance(int type)
     {
         switch (type)
         {

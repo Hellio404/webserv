@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Config.hpp"
+#include "Utils.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -9,7 +9,7 @@
 #include <string>
 #include <stack>
 #include <map>
-// TODO: remove c++11 to_string
+
 namespace we
 {
     struct directive_info
@@ -18,7 +18,7 @@ namespace we
         unsigned int    num_opt_args: 8;
         unsigned int    allow_block: 1;
         unsigned int    allow_duplicate: 1;
-        
+
         unsigned int    allow_in_root:1;
         unsigned int    allow_in_server:1;
         unsigned int    allow_in_location:1;
@@ -37,7 +37,7 @@ namespace we
     {
         size_t                                                  parent_idx;
         std::string                                             name;
-        std::multimap <std::string,  directive_data>            directives;
+        std::map <std::string,  std::vector<directive_data> >   directives;
         std::vector<std::string>                                args;
         std::string                                             path;
         unsigned int                                            line;
@@ -71,7 +71,7 @@ namespace we
         char            consume(char c);
         void            next_token();
         void            skip_comments();
-        std::string     get_token();
+        std::string     get_token(bool = true);
         std::string     get_arg();
         void            directive();
         void            block();

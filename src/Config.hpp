@@ -1,6 +1,7 @@
 #pragma once
 
-#include "Parser.hpp"
+
+
 #include <cstring>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -14,11 +15,16 @@
 #include <vector>
 #include <map>
 #include "Regex.hpp"
-
+#include "Parser.hpp"
+#include "Response/Handler.hpp"
 #define OFFSET_OF(type, member) ((size_t)&(((type*)0)->member))
+
+
 
 namespace we
 {
+    class Connection;
+
     struct directive_data;
     struct directive_block;
 
@@ -67,26 +73,34 @@ namespace we
             Modifier_regex_icase = 5,
         };
 
-        std::string                 pattern;
-        Modifier                    modifier;
-        ft::Regex                   *regex;
-        long long                   client_body_timeout;
-        bool                        client_body_in_file;
-        long long                   client_body_buffer_size;
-        long long                   client_max_body_size;
+        std::string                                         pattern;
+        Modifier                                            modifier;
+        ft::Regex                                           *regex;
+        long long                                           client_body_timeout;
+        bool                                                client_body_in_file;
+        long long                                           client_body_buffer_size;
+        long long                                           client_max_body_size;
 
-        std::vector<std::string>    index;
-        std::string                 root;
-        bool                        autoindex;
-        bool                        allow_upload;
-        std::string                 upload_dir;
-        AllowedMethods              allowed_methods;
+        bool                                                is_redirection;
+        std::string                                         redirect_url;
+        int                                                 return_code;
+
+        std::map<int, std::string>                          error_pages;
+
+        std::vector<std::string>                            index;
+        std::string                                         root;
+        bool                                                autoindex;
+        bool                                                allow_upload;
+        std::string                                         upload_dir;
+        AllowedMethods                                      allowed_methods;
+        std::vector<std::vector<int (*)(Connection *)> >    handlers;
 
     public:
         LocationBlock();
         ~LocationBlock();
         LocationBlock(LocationBlock const &);
 
+        std::string                 get_error_page(int status) const;
         bool                        is_allowed_method(std::string method) const;
     };
 
@@ -134,13 +148,14 @@ namespace we
 
     public:
         MultiplexingType                                                multiplex_type;
-
+        unsigned int                                                    max_internal_redirect;
         long long                                                       client_header_timeout;
         long long                                                       client_header_buffer_size;
         long long                                                       client_max_header_size;
 
         std::map<int, std::vector<ServerBlock> >                        server_blocks;
         std::map<sockaddr, int, ComparSockAddr>                         server_socks;
+        std::map<std::string, std::string>                              mime_types;
 
     public:
         Config();
@@ -159,3 +174,4 @@ namespace we
     void        print_config_block_info(const Config & val);
 
 } // namespace we
+#include "Connection.hpp"

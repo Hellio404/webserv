@@ -213,7 +213,7 @@ namespace we
 
         if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             throw std::runtime_error(std::string("socket ") + strerror(errno));
-
+        
         if (fcntl(listen_fd, F_SETFL, O_NONBLOCK) < 0)
             throw std::runtime_error(std::string("fcntl ") + strerror(errno));
 
@@ -223,7 +223,7 @@ namespace we
         if (bind(listen_fd, res->ai_addr, res->ai_addrlen) < 0)
             throw std::runtime_error(std::string("bind ") + strerror(errno));
 
-        if (listen(listen_fd, SOMAXCONN) < 0)
+        if (listen(listen_fd, 1024) < 0)
             throw std::runtime_error(std::string("listen ") + strerror(errno));
 
         server_config.listen_socket = listen_fd;
@@ -291,14 +291,67 @@ namespace we
         throw std::runtime_error(error_to_print("invalid multiplex type", data));
     }
 
+    static void handle_error_page(LocationBlock &location_config, std::vector<directive_data> *data)
+    {
+        std::vector<directive_data>::const_iterator dd_it = data->begin();
+        for (; dd_it != data->end(); dd_it++)
+        {
+            std::string path = location_config.root;
+
+            if (path.size() && path[path.size() - 1] != '/' && dd_it->args.back()[0] != '/')
+                path += '/';
+            else if (path.size() && path[path.size() - 1] == '/' && dd_it->args.back()[0] == '/')
+                path.erase(path.size() - 1);
+            path += dd_it->args.back();
+
+
+            for (size_t i = 0; i < dd_it->args.size() - 1; i++)
+            {
+                std::string arg = dd_it->args[i];
+                if (arg[0] == '+')
+                    arg = '-';
+                ssize_t status_code = we::atou(arg, *dd_it);
+                // Check if the status code is valid
+                if (status_code < 400 || (status_code > 417 && status_code < 500) || status_code > 505)
+                    throw std::runtime_error(error_to_print("invalid status code", *dd_it));
+                location_config.error_pages[status_code] = path;
+            }
+        }
+    }
+    
+    static void handle_return(LocationBlock &location_config, directive_data const &data)
+    {
+        std::string ret_value = data.args.front();
+        if (ret_value[0] == '+')
+            ret_value = '-';
+        ssize_t ret_code = we::atou(ret_value, data);
+        if (ret_code < 300 || ret_code > 308)
+            throw std::runtime_error(error_to_print("invalid return code", data));
+        location_config.return_code = ret_code;
+        location_config.redirect_url = data.args.back();
+        location_config.is_redirection = true;
+    }
+   
+
     static directive_data *get_directive_data(const std::string &name, directive_block *root, directive_block *server, directive_block *location)
     {
         if (location && location->directives.count(name))
-            return &(location->directives.find(name)->second);
+            return &location->directives[name].front();
         else if (server && server->directives.count(name))
-            return &(server->directives.find(name)->second);
+            return &server->directives[name].front();
         else if (root && root->directives.count(name))
-            return &(root->directives.find(name)->second);
+            return &root->directives[name].front();
+        return NULL;
+    }
+
+    static std::vector<directive_data> *get_all_directive_data(const std::string &name, directive_block *root, directive_block *server, directive_block *location)
+    {
+        if (location && location->directives.count(name))
+            return &location->directives[name];
+        else if (server && server->directives.count(name))
+            return &server->directives[name];
+        else if (root && root->directives.count(name))
+            return &root->directives[name];
         return NULL;
     }
 
@@ -306,7 +359,7 @@ namespace we
     {
         static const directive_dispatch dispatcher[] = {
             { "use_events", NULL, 0 },
-            { "default_type", NULL, 0 },
+            { "default_type", NULL, 0 }, // TODO: 
             { "client_header_timeout", &we::set_time_directive, OFFSET_OF(Config, client_header_timeout) },
             { "client_max_header_size", &we::set_size_directive, OFFSET_OF(Config, client_max_header_size) },
             { "client_header_buffer_size", &we::set_size_directive, OFFSET_OF(Config, client_header_buffer_size) },
@@ -373,6 +426,7 @@ namespace we
         static const directive_dispatch dispatcher[] = {
             { "root", &we::set_string_directive, OFFSET_OF(LocationBlock, root) },
             { "index", NULL, 0 },
+            { "error_page", NULL, 0},
             { "autoindex", &we::set_boolean_directive, OFFSET_OF(LocationBlock, autoindex) },
             { "allow_upload", &we::set_boolean_directive, OFFSET_OF(LocationBlock, allow_upload) },
             { "upload_dir", &we::set_string_directive, OFFSET_OF(LocationBlock, upload_dir) },
@@ -382,11 +436,13 @@ namespace we
             { "client_body_in_file", &we::set_boolean_directive, OFFSET_OF(LocationBlock, client_body_in_file) },
             { "client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size) },
             { "client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size) },
+            { "return", NULL , 0 },
+            
         };
 
         for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
         {
-            directive_data *data = get_directive_data(dispatcher[i].name, root, server, location);
+            std::vector<directive_data> *data = get_all_directive_data(dispatcher[i].name, root, server, location);
 
             if (data == NULL)
                 continue;
@@ -394,15 +450,28 @@ namespace we
             if (dispatcher[i].func == NULL)
             {
                 if (strncmp(dispatcher[i].name, "index", 5) == 0)
-                    location_config.index = data->args;
+                    location_config.index = data->front().args;
+                else if (strncmp(dispatcher[i].name, "error_page", 10) == 0)
+                    handle_error_page(location_config, data);
                 else if (strncmp(dispatcher[i].name, "allowed_methods", 15) == 0)
-                    handle_location_methods(location_config, *data, false);
+                    handle_location_methods(location_config, data->front(), false);
                 else if (strncmp(dispatcher[i].name, "denied_methods", 13) == 0)
-                    handle_location_methods(location_config, *data, true);
+                    handle_location_methods(location_config, data->front(), true);
+                else if (strncmp(dispatcher[i].name, "return", 6) == 0)
+                    handle_return(location_config, data->front());
             }
             else
-                dispatcher[i].func(&location_config, *data, dispatcher[i].offset);
+                dispatcher[i].func(&location_config, data->front(), dispatcher[i].offset);
         }
+
+
+        // FIXME: This needs to change
+        location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
+        location_config.handlers[Phase_Access].push_back(&we::index_handler);
+        location_config.handlers[Phase_Access].push_back(&we::autoindex_handler);
+        location_config.handlers[Phase_Access].push_back(&we::file_handler);
+        location_config.handlers[Phase_Access].push_back(&we::post_access_handler);
+        location_config.handlers[Phase_Logging].push_back(&we::logger_handler);
     }
 
     ///////////////////////////////////////////////////////////////////////////

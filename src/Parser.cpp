@@ -2,7 +2,6 @@
 
 namespace we
 {
-
     static std::map<std::string, directive_info> dir_infos;
 
     void register_directive(std::string name, unsigned int num_args, unsigned int num_opt_args, bool allow_block, bool allow_duplicate, bool allow_in_root, bool allow_in_server, bool allow_in_location)
@@ -53,7 +52,7 @@ namespace we
         f->close();
         delete f;
     }
-    
+
     void    Parser::add_file(std::string const &path)
     {
         file_info *f = new file_info(path);
@@ -70,7 +69,6 @@ namespace we
             throw std::runtime_error("Can't remove file: no file left");
         file = files.top()->f;
     }
-
 
     char Parser::next()
     {
@@ -103,12 +101,12 @@ namespace we
 
     std::string Parser::file_pos()
     {
-        return files.top()->path + " line " + std::to_string(files.top()->line_number) + ":" + std::to_string(files.top()->column_number);
+        return files.top()->path + ":" + we::to_string(files.top()->line_number) + ":" + we::to_string(files.top()->column_number);
     }
 
     std::string Parser::file_pos(unsigned int line, unsigned int column)
     {
-        return files.top()->path + " line " + std::to_string(line) + ":" + std::to_string(column);
+        return files.top()->path + ":" + we::to_string(line) + ":" + we::to_string(column);
     }
 
     void Parser::expected(char c)
@@ -146,26 +144,26 @@ namespace we
         }
     }
 
-    std::string Parser::get_token()
-    {
-        std::string token;
-        this->next_token();
-        while (!file->eof() && (isalpha(peek()) || peek() == '_'))
-            token += this->next();
-        return token;
-    }
-
     static bool is_special_char(char c)
     {
         return   c == '{' || c == '}' || c == ';'  || c == '#' || c == '\n' || c == '\t' || c == ' ' || c == '\\';
     }
+
+    std::string Parser::get_token(bool strict)
+    {
+        std::string token;
+        this->next_token();
+        while (!file->eof() && (strict && (isalpha(peek()) || peek() == '_')) || (!strict && !is_special_char(peek()) ))
+            token += this->next();
+        return token;
+    }
+
     std::string Parser::get_arg()
     {
         std::string arg;
         this->next_token();
         bool is_skipped = false;
         while (!file->eof() && (is_skipped || (peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '\n' && peek() != ';' && peek() != '{' && peek() != '}')))
-
         {
             if (peek() == '\\' && !is_skipped)
             {
@@ -217,6 +215,8 @@ namespace we
             current_directive = 1;
         else if (name == "location")
             current_directive = 2;
+        else if (name == "types")
+            current_directive = 3;
         this->block();
         this->consume('}');
         // this->level--;
@@ -228,7 +228,7 @@ namespace we
 
     void Parser::directive()
     {
-        std::string name = this->get_token();
+        std::string name = this->get_token(current_directive != 3);
 
         std::string path = files.top()->path;
         unsigned int line = files.top()->line_number;
@@ -245,7 +245,7 @@ namespace we
         if (file->eof() || (peek() != '\n' && peek() != ';' && peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '{'))
             this->unexpected();
 
-        if (dir_infos.count(name) == 0)
+        if (current_directive != 3 && dir_infos.count(name) == 0)
             throw std::runtime_error("Unknown directive '" + name + "' at " + file_pos(line, col));
 
         switch (current_directive)
@@ -262,14 +262,17 @@ namespace we
             if (dir_infos[name].allow_in_location == false)
                 throw std::runtime_error("Directive '" + name + "' is not allowed in location " + file_pos(line, col));
             break;
+        case 3:
         default:
             break;
         }
 
-        if (this->blocks[current_block].directives.count(name) > 0 && !dir_infos[name].allow_duplicate)
+        if (current_directive != 3 && this->blocks[current_block].directives.count(name) > 0 && !dir_infos[name].allow_duplicate)
             throw std::runtime_error("Duplicate directive '" + name + "' at " + file_pos(line, col));
 
-        std::vector<std::string> &args = (*this->blocks[current_block].directives.insert(std::make_pair(name, directive_data(path, line, col)))).second.args;
+        
+        this->blocks[current_block].directives[name].push_back(directive_data(path, line, col));
+        std::vector<std::string> &args = this->blocks[current_block].directives[name].back().args;
 
         while (!file->eof() && peek() != ';' && peek() != '{' && peek() != '}')
         {
@@ -280,17 +283,16 @@ namespace we
                 // std::cerr << arg << " ";
             }
         }
-
-        if (args.size() < dir_infos[name].num_args)
-            throw std::runtime_error("Too few arguments for directive '" + name + "' at " + file_pos(line, col));
-        if (args.size() > dir_infos[name].num_args + dir_infos[name].num_opt_args)
-            throw std::runtime_error("Too many arguments for directive '" + name + "' at " + file_pos(line, col));
-
-        if (dir_infos[name].allow_block)
+        if (current_directive != 3)
         {
-            this->read_block(name, path, line, col, args);
-            this->blocks[current_block].directives.erase(name);
+            if (args.size() < dir_infos[name].num_args)
+                throw std::runtime_error("Too few arguments for directive '" + name + "' at " + file_pos(line, col));
+            if (args.size() > dir_infos[name].num_args + dir_infos[name].num_opt_args)
+                throw std::runtime_error("Too many arguments for directive '" + name + "' at " + file_pos(line, col));
         }
+
+        if (dir_infos[name].allow_block && current_directive != 3)
+            this->read_block(name, path, line, col, args);
         else
         {
             this->consume(';');

@@ -9,8 +9,8 @@
 #include <map>
 #include <stdexcept>
 
-#include "Connection.hpp"
 #include "Config.hpp"
+#include "Connection.hpp"
 
 #define HAVE_SELECT 1
 #define HAVE_KQUEUE 1
@@ -34,8 +34,6 @@
 namespace we
 {
     class Connection;
-
-
     class AMultiplexing
     {
     protected:
@@ -126,5 +124,5 @@ namespace we
 #endif
 
     std::string     get_instance_name();
-    AMultiplexing   *get_instance(Config::MultiplexingType type);
+    AMultiplexing   *get_instance(int type);
 }

@@ -10,6 +10,7 @@ namespace we
         this->client_header_timeout = 60 * 1000;
         this->client_header_buffer_size = 4 * 1024;
         this->client_max_header_size = 16 * 1024 * 1024;
+        this->max_internal_redirect = 10;
     }
 
     const ServerBlock   *Config::get_server_block(int socket, const std::string &host) const
@@ -96,6 +97,9 @@ namespace we
 
         this->autoindex = false;
         this->allow_upload = false;
+
+        this->handlers.resize(PHASE_NUMBER);
+        this->is_redirection = false;
     }
 
     LocationBlock::~LocationBlock()
@@ -103,6 +107,7 @@ namespace we
         if (this->regex)
             delete this->regex;
     }
+
     LocationBlock::LocationBlock(LocationBlock const &other)
     {
         this->client_body_timeout = other.client_body_timeout;
@@ -122,6 +127,18 @@ namespace we
         this->allow_upload = other.allow_upload;
         this->upload_dir = other.upload_dir;
         this->allowed_methods = other.allowed_methods;
+        this->handlers = other.handlers;
+        this->error_pages = other.error_pages;
+        this->is_redirection = other.is_redirection;
+        this->redirect_url = other.redirect_url;
+        this->return_code = other.return_code;
+    }
+
+    std::string LocationBlock::get_error_page(int status) const
+    {
+        if (this->error_pages.count(status))
+            return this->error_pages.find(status)->second;
+        return "";
     }
 
     bool    LocationBlock::is_allowed_method(std::string method) const
@@ -144,6 +161,7 @@ namespace we
         we::register_directive("include", 1, 0, false, true, true, true, true);
         we::register_directive("server", 0, 0, true, true, true, false, false);
         we::register_directive("location", 1, 1, true, true, false, true, false);
+        we::register_directive("types", 0, 0, true, false, true, false, false);
 
         // Root level directives
         we::register_directive("use_events", 1, 0, false, false, true, false, false);
@@ -168,12 +186,14 @@ namespace we
         we::register_directive("autoindex", 1, 0, false, false, false, true, true);
         we::register_directive("allow_upload", 1, 0, false, false, false, false, true);
         we::register_directive("upload_dir", 1, 0, false, false, false, false, true);
+        we::register_directive("error_page", 2, -1, false, true, true, true, true);
         we::register_directive("allowed_methods", 1, -1, false, false, true, true, true);
         we::register_directive("denied_methods", 1, -1, false, false, true, true, true);
         we::register_directive("client_body_timeout", 1, 0, false, false, true, true, true);
         we::register_directive("client_body_in_file", 1, 0, false, false, true, true, true);
         we::register_directive("client_body_buffer_size", 1, 0, false, false, true, true, true);
         we::register_directive("client_max_body_size", 1, 0, false, false, true, true, true);
+        we::register_directive("return", 2, 0, false, false, false, false, true);
     }
 
     static void validate_config(Config &config)
@@ -221,7 +241,6 @@ namespace we
         init_config();
 
         parser.block();
-
         assert(parser.blocks.size() > 0);
 
         directive_block *root_block = &parser.blocks[0];
@@ -292,6 +311,25 @@ namespace we
 
                 init_location_directives(location_config, root_block, server_block, location_block);
                 current_server_config->locations.push_back(location_config);
+            }
+            else if (it->name == "types")
+            {
+                std::map <std::string,  std::vector<directive_data> >::iterator it2 = it->directives.begin();
+                for (; it2 != it->directives.end(); ++it2)
+                {
+                    std::vector<directive_data>::iterator it3 = it2->second.begin();
+                    for (; it3 != it2->second.end(); ++it3)
+                    {
+                        std::vector<std::string>::iterator it4 = it3->args.begin();
+                        for (; it4 != it3->args.end(); ++it4)
+                        {
+                            if (config.mime_types.count(*it4))
+                                throw std::runtime_error("Redefinition of the type of the extention " + *it4 +" at "+ it3->path + ":" + std::to_string(it3->line));
+
+                           config.mime_types[*it4] = it2->first;
+                        }
+                    }
+                }
             }
         }
 
