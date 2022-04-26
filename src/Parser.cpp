@@ -55,6 +55,8 @@ namespace we
 
     void    Parser::add_file(std::string const &path)
     {
+        if (files.size() > 100)
+            throw std::runtime_error("Circular include or too many files");
         file_info *f = new file_info(path);
         files.push(f);
         file = files.top()->f;
@@ -153,7 +155,7 @@ namespace we
     {
         std::string token;
         this->next_token();
-        while (!file->eof() && (strict && (isalpha(peek()) || peek() == '_')) || (!strict && !is_special_char(peek()) ))
+        while (!file->eof() && ((strict && (isalpha(peek()) || peek() == '_')) || (!strict && !is_special_char(peek()))) )
             token += this->next();
         return token;
     }

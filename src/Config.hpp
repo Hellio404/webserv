@@ -57,6 +57,7 @@ namespace we
             int post: 2;
             int put: 2;
             int head: 2;
+            int del: 2;
         };
         
 
@@ -87,6 +88,7 @@ namespace we
 
         std::vector<std::string>                            index;
         std::string                                         root;
+        bool                                                allowed_method_found;
         bool                                                autoindex;
         bool                                                allow_upload;
         std::string                                         upload_dir;

@@ -8,7 +8,7 @@ namespace we
     {
         Logger &logger = Logger::get_instance();
 
-        logger.logAccess(con);
+        logger.log(con);
 
         return 1;
     }

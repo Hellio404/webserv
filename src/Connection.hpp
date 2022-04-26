@@ -25,7 +25,7 @@ namespace we
     class Config;
     class ServerBlock;
     class LocationBlock;
-
+    
     class Connection
     {
     private:
@@ -61,11 +61,12 @@ namespace we
         struct sockaddr_storage                                             client_addr;
         socklen_t                                                           client_addr_len;
         std::string                                                         client_addr_str;
-        bool                                                                client_started_header;
 
+        bool                                                                client_started_header;
         const Config                                                        &config;
         AMultiplexing                                                       &multiplexing;
         EventLoop                                                           &loop;
+        EventData                                                           event_data;
         const Event                                                         *client_timeout_event;
 
         bool                                                                is_http_10;
@@ -81,6 +82,7 @@ namespace we
         unsigned long long                                                  is_body_chunked:1;
         unsigned long long                                                  to_chunk:1;
 
+        bool                                                                metadata_set;
         unsigned long long                                                  content_length;
         std::string                                                         mime_type;
         std::string                                                         etag;
@@ -88,7 +90,6 @@ namespace we
 
 
         char                                                                *client_headers_buffer;
-        std::string                                                         client_headers;
         char                                                                *client_body_buffer;
         HeaderParser                                                        client_header_parser;
         ResponseServer                                                      *response_server;
@@ -100,13 +101,13 @@ namespace we
         std::string                                                         expanded_url;
         std::string                                                         requested_resource;
 
-        std::string                                                         start_line;
         std::map<std::string, std::string, LessCaseInsensitive>             req_headers;
         std::multimap<std::string, std::string, LessCaseInsensitive>        res_headers;
 
         Connection(int, EventLoop&, const Config&, AMultiplexing&);
         ~Connection();
         void        handle_connection();
+        void        timeout();
 
     private:
         typedef std::map<std::string, std::string, LessCaseInsensitive>     map_type;
@@ -128,6 +129,7 @@ namespace we
         void        process_handlers();
         bool        process_file_for_response();
         void        get_info_headers();
+        void        reset();
 
     };
 }

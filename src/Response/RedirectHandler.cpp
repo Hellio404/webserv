@@ -17,7 +17,7 @@ namespace we
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("Location", location));
                 con->res_headers.insert(std::make_pair("@response_code", "301"));
-                con->res_headers.insert(std::make_pair("X-Handler", "redirect"));
+                con->res_headers.insert(std::make_pair("@handler", "redirect"));
 
                 con->keep_alive = false;
 
@@ -40,7 +40,7 @@ namespace we
         con->response_type = Connection::ResponseType_File;
         con->res_headers.insert(std::make_pair("Location", location));
         con->res_headers.insert(std::make_pair("@response_code", we::to_string(con->location->return_code)));
-        con->res_headers.insert(std::make_pair("X-Handler", "redirect"));
+        con->res_headers.insert(std::make_pair("@handler", "redirect"));
 
         con->keep_alive = false;
 

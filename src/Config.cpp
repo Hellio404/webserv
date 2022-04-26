@@ -110,12 +110,17 @@ namespace we
         char tmp[PATH_MAX];
         getcwd(tmp, PATH_MAX);
         this->root = tmp;
+        this->upload_dir = tmp;
 
         this->autoindex = false;
         this->allow_upload = false;
 
         this->handlers.resize(PHASE_NUMBER);
         this->is_redirection = false;
+        this->return_code = 404;
+
+        memset(&this->allowed_methods, 0, sizeof(this->allowed_methods));
+        this->allowed_method_found = false;
     }
 
     LocationBlock::~LocationBlock()
@@ -149,6 +154,7 @@ namespace we
         this->is_redirection = other.is_redirection;
         this->redirect_url = other.redirect_url;
         this->return_code = other.return_code;
+        this->allowed_method_found = other.allowed_method_found;
     }
 
     std::string LocationBlock::get_error_page(int status) const
@@ -161,13 +167,15 @@ namespace we
     bool    LocationBlock::is_allowed_method(std::string method) const
     {
         if (method == "GET")
-            return this->allowed_methods.get >= 0;
+            return this->allowed_methods.get >= allowed_method_found;
         else if (method == "POST")
-            return this->allowed_methods.post >= 0;
+            return this->allowed_methods.post >= allowed_method_found;
         else if (method == "PUT")
-            return this->allowed_methods.put >= 0;
+            return this->allowed_methods.put >= allowed_method_found;
         else if (method == "HEAD")
-            return this->allowed_methods.head >= 0;
+            return this->allowed_methods.head >= allowed_method_found;
+        else if (method == "DELETE")
+            return this->allowed_methods.del >= allowed_method_found;
         else
             return false;
     }

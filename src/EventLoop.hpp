@@ -48,7 +48,7 @@ public:
     struct timeval  get_current_time();
     long long       get_next_activation_time();
     void            reschedule_event(std::set<Event>::iterator it);
-    void            remove_event(Event event);
+    void            remove_event(Event const &event);
 };
 
 } // namespace we

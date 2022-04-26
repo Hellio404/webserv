@@ -36,6 +36,8 @@ namespace we
                 throw we::HTTPStatusException(400, "");
             method.push_back(*it++);
         }
+        if (!we::is_method_supported(method))
+            throw we::HTTPStatusException(501, "");
         while ((*it == ' ' || *it == '\t'))
             ++it;
         const char *http_full_url = "http://";

@@ -30,11 +30,11 @@ namespace we
             return _instance;
         }
 
-        void logAccess(Connection *connection);
-        void logError(Connection *connection);
+        void log(Connection *);
+        void error(Connection *, const std::string &);
 
-        void setAccessLog(std::string const &path);
-        void setErrorLog(std::string const &path);
+        void setAccessLog(std::string const &);
+        void setErrorLog(std::string const &);
 
         void closeAccessLog();
         void closeErrorLog();

@@ -22,7 +22,7 @@ namespace we
             throw   std::runtime_error(error_to_print("invalid argument", data));
         while (val[i])
         {
-            if (!isalnum(val[i]))
+            if (!isdigit(val[i]))
                 throw   std::runtime_error(error_to_print("invalid argument", data));
             ret = ret * 10 + val[i] - '0';
             if (ret > 9223372036854775807ULL + (sign == -1))
@@ -47,7 +47,7 @@ namespace we
             throw   std::runtime_error(error_to_print("invalid argument", data));
         while (val[i])
         {
-            if (!isalnum(val[i]))
+            if (!isdigit(val[i]))
                 throw   std::runtime_error(error_to_print("invalid argument", data));
             ret = ret * 10 + (val[i] - '0');
             if (ret > 9223372036854775807ULL)
@@ -235,8 +235,7 @@ namespace we
         unsigned int flag = 0x00000000;
 
         if (!deny)
-            memset(&location_config.allowed_methods, -1, sizeof(location_config.allowed_methods));
-        // TODO: Missing directive name for error handling
+            location_config.allowed_method_found = true;
         for (size_t i = 0; i < data.args.size(); i++)
         {
             if (data.args[i] == "GET")
@@ -267,6 +266,15 @@ namespace we
                 location_config.allowed_methods.head += deny ? -1 : 1;
                 flag |= 0x0000F000;
             }
+            else if (data.args[i] == "DELETE")
+            {
+                if (flag & 0x000F0000)
+                    throw std::runtime_error(error_to_print("duplicate method 'DELETE'", data));
+                location_config.allowed_methods.del += deny ? -1 : 1;
+                flag |= 0x000F0000;
+            }
+            else
+                throw std::runtime_error(error_to_print("invalid method", data));
         }
     }
 
@@ -464,6 +472,7 @@ namespace we
 
 
         // FIXME: This needs to change
+        location_config.handlers[Phase_Reserved_1].push_back(&we::pre_access_handler);
         location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
         location_config.handlers[Phase_Access].push_back(&we::index_handler);
         location_config.handlers[Phase_Access].push_back(&we::autoindex_handler);
@@ -474,6 +483,9 @@ namespace we
 
         // Error handlers
         location_config.handlers[Phase_Access].push_back(&we::post_access_handler);
+
+        // create ResponseServer
+        location_config.handlers[Phase_Reserved_3].push_back(&we::response_server_handler);
 
         // Logging handlers
         location_config.handlers[Phase_Logging].push_back(&we::logger_handler);

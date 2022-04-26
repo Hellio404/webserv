@@ -10,7 +10,7 @@ namespace we
     {
     }
 
-    void Logger::logAccess(Connection *connection)
+    void Logger::log(Connection *connection)
     {
         if (this->isAccessLogOpen == false)
             return;
@@ -38,13 +38,10 @@ namespace we
                         << http_user_agent << "\"" << std::endl;
     }
 
-    void Logger::logError(Connection *connection)
+    void Logger::error(Connection *connection, const std::string &message)
     {
         if (this->isErrorLogOpen)
-            this->errorLog  << connection->client_addr_str
-                            << " - - [ " << this->prettyDateTime() << " ] \""
-                            << connection->req_headers["@method"] << " " << connection->expanded_url << " HTTP/1.1"
-                            << "\" - - \"( -- )\"" << std::endl;
+            this->errorLog << message << std::endl;
     }
 
     void Logger::setAccessLog(std::string const &path)

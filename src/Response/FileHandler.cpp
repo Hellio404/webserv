@@ -7,7 +7,6 @@
 
 namespace we
 {
-
     static unsigned long long range_utoa(std::string::const_iterator begin, std::string::const_iterator end, bool &valid)
     {
         unsigned long long ret = 0;
@@ -29,13 +28,11 @@ namespace we
     }
 
     typedef unsigned long long ull;
+
     static bool handle_range(std::string const &range, std::vector<std::pair<ull, ull> > &vranges, ull max_size)
     {
-
         std::set<std::pair<ull, ull> > ranges;
 
-        if (range.size() > 1024 || range.find("bytes=") != 0)
-            return false;
         std::string::const_iterator it = range.begin() + 6;
         try
         {
@@ -119,6 +116,26 @@ namespace we
         return true;
     }
 
+    static int test_if_range(Connection *con, struct stat *st)
+    {
+        try
+        {
+            Date datetime(con->req_headers["If-Range"]);
+
+            if (datetime != st->st_mtime)
+                return 1;
+        }
+        catch (...)
+        {
+            std::string etag = con->req_headers["If-Range"];
+
+            if (etag != con->etag)
+                return 1;
+        }
+
+        return 0;
+    }
+
     int file_handler(Connection *con)
     {
         std::string &requested_resource = con->requested_resource;
@@ -140,10 +157,14 @@ namespace we
             con->last_modified = st.st_mtime * 1000;
             con->mime_type = con->config.get_mime_type(requested_resource);
 
-            if (con->req_headers.count("Range") && con->req_headers["Range"] != "")
+            if (con->req_headers.count("If-Range") && con->req_headers.count("Range") && !test_if_range(con, &st))
+                goto finalize_file_response;
+
+            if (con->req_headers.count("Range") && strncasecmp(con->req_headers["Range"].c_str(), "bytes=", 6) == 0)
             {
                 if (handle_range(con->req_headers["Range"], con->ranges, st.st_size))
                 {
+                    con->metadata_set = true;
                     con->response_type = Connection::ResponseType_RangeFile;
                     con->res_headers.insert(std::make_pair("@response_code", "206"));
                     con->res_headers.insert(std::make_pair("@handler", "file_handler/range"));
@@ -153,6 +174,7 @@ namespace we
                 else
                 {
                     con->response_type = Connection::ResponseType_File;
+                    con->res_headers.insert(std::make_pair("Content-Range", "bytes */" + content_length));
                     con->res_headers.insert(std::make_pair("@response_code", "416"));
                     con->res_headers.insert(std::make_pair("@handler", "file_handler/range"));
                     con->res_headers.insert(std::make_pair("@file", requested_resource));
@@ -161,6 +183,8 @@ namespace we
                 }
             }
 
+        finalize_file_response:
+            con->metadata_set = true;
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "200"));
             con->res_headers.insert(std::make_pair("@content-length", content_length));

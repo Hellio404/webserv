@@ -16,7 +16,7 @@ namespace we
         {
 
             con->redirect_count--;
-            con->phase = Phase(int(Phase_Reserved_1) - 1);
+            con->phase = Phase_Pre_Start;
             con->requested_resource = url;
             con->location = con->server->get_location(con->requested_resource);
         }
