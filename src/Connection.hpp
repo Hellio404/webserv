@@ -9,6 +9,7 @@
 #include "ResponseServer.hpp"
 #include "HeaderParser.hpp"
 #include "Response/Handler.hpp"
+#include "BodyHandler.hpp"
 
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -17,7 +18,6 @@
 #include <istream>
 #include <ostream>
 #include <vector>
-
 namespace we
 {
     class ResponseServer;
@@ -25,7 +25,8 @@ namespace we
     class Config;
     class ServerBlock;
     class LocationBlock;
-    
+    class BodyHandler;
+
     class Connection
     {
     private:
@@ -35,6 +36,7 @@ namespace we
         enum Status
         {
             Read,
+            ReadBody,
             Write,
             Idle,
             Timeout
@@ -103,6 +105,8 @@ namespace we
 
         std::map<std::string, std::string, LessCaseInsensitive>             req_headers;
         std::multimap<std::string, std::string, LessCaseInsensitive>        res_headers;
+
+        BodyHandler                                                         *body_handler;
 
         Connection(int, EventLoop&, const Config&, AMultiplexing&);
         ~Connection();

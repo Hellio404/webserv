@@ -12,9 +12,10 @@ namespace we
         skip_lf = false;
         skip_to_crlf = false;
         skip_to_lf = false;
+        file_size = 0;
     }
 
-    bool ChunckReader::add_to_chunk(const char *buffer, const char *end)
+    bool ChunckReader::add_to_chunk(const char *&buffer, const char *end)
     {
         while (buffer != end)
         {
@@ -166,10 +167,10 @@ namespace we
             skip_to_crlf = true;
     }
 
-    bool ChunckReader::add_to_chunk(const std::string &str)
-    {
-        return add_to_chunk(str.c_str(), str.c_str() + str.size());
-    }
+    // bool ChunckReader::add_to_chunk(const std::string &str)
+    // {
+    //     return add_to_chunk(str.c_str(), str.c_str() + str.size());
+    // }
 
     size_t  ChunckReader::get_file_size() const
     {

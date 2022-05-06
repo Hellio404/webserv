@@ -23,6 +23,7 @@ namespace we
         this->client_headers_buffer = NULL;
         this->client_body_buffer = NULL;
         this->response_server = NULL;
+        this->body_handler = NULL;
         this->reset();
 
         this->client_headers_buffer = new char[this->config.client_max_header_size];
@@ -36,6 +37,7 @@ namespace we
             delete[] this->client_body_buffer;
         if (this->response_server != NULL)
             delete this->response_server;
+
     }
 
     void Connection::print_headers()
@@ -101,17 +103,32 @@ namespace we
                     this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
 
                     // this->check_potential_body();
-                    this->status = Connection::Write;
 
-                    this->multiplexing.remove(this->client_sock);
-                    this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+                   
                     this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
                     this->location = this->server->get_location(this->expanded_url);
                     this->requested_resource = we::get_file_fullpath(this->location->root, this->expanded_url);
-                    if (this->client_timeout_event)
-                        this->loop.remove_event(*this->client_timeout_event);
-                    this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 10000);
+                   
                     this->get_info_headers();
+                    if (this->is_body_chunked || this->client_content_length > 0)
+                    {
+                        this->status = Connection::ReadBody;
+                        if (this->client_timeout_event)
+                            this->loop.remove_event(*this->client_timeout_event);
+                        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 1000000); // TODO: do something with this
+                        this->body_handler = new BodyHandler(this); 
+                    }
+                    else
+                    {
+
+                        this->status = Connection::Write;
+                        this->multiplexing.remove(this->client_sock);
+                        this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+                        if (this->client_timeout_event)
+                            this->loop.remove_event(*this->client_timeout_event);
+                        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 10000);
+                    }
+
                 }
             }
             catch (std::exception &e)
@@ -135,13 +152,48 @@ namespace we
                 response_server_handler(this);
                 if (this->client_timeout_event)
                     this->loop.remove_event(*this->client_timeout_event);
-                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 10000);
+                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 1000); // TODO: fixe
 
             }
             catch (...)
             {
                 goto close_connection;
             }
+        }
+        else if (this->status == Connection::ReadBody)
+        {
+            try
+            {
+                ssize_t recv_ret;
+                if (this->client_remaining_data.size())
+                {
+                    recv_ret = this->client_remaining_data.size();
+                    std::memcpy(this->client_headers_buffer, this->client_remaining_data.c_str(), recv_ret);
+                    this->client_remaining_data.clear();
+                }
+                else
+                    recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
+
+                if (recv_ret <= 0)
+                    goto close_connection;
+                if (this->body_handler->add_data(this->client_headers_buffer, this->client_headers_buffer + recv_ret))
+                {
+                    this->body_handler->move_tmpfile("./file.txt");
+                    this->status = Connection::Write;
+                    this->multiplexing.remove(this->client_sock);
+                    this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+                    if (this->client_timeout_event)
+                        this->loop.remove_event(*this->client_timeout_event);
+                    this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, 10000);
+                }
+
+            }
+            catch(const std::exception& e)
+            {
+                std::cerr << e.what() << '\n';
+                goto close_connection; // TODO: handle errors
+            }
+            
         }
         else if (this->status == Connection::Write)
         {
@@ -169,6 +221,8 @@ finish_connection:
         if (this->keep_alive == false)
         {
 close_connection:
+            if (this->client_timeout_event)
+                this->loop.remove_event(*this->client_timeout_event);
             close(this->client_sock);
             delete this;
             return;
@@ -224,22 +278,14 @@ close_connection:
         if (this->client_timeout_event)
             this->loop.remove_event(*this->client_timeout_event);
         this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->config.client_header_timeout);
+
+        if (body_handler)
+        {
+            delete body_handler;
+            body_handler = NULL;
+        }
     }
 
-    // void Connection::check_potential_body()
-    // {
-    //     if (this->req_headers.find("Content-Length") != this->req_headers.end())
-    //         this->is_body_expected = true;
-
-    //     map_type::const_iterator tmp = this->req_headers.find("Transfer-Encoding");
-    //     if (tmp != this->req_headers.end())
-    //     {
-    //         this->is_body_chunked = !strcasecmp("chunked", tmp->second.c_str());
-    //         if (this->is_body_chunked == false)
-    //             throw we::HTTPStatusException(501, "Not Implemented");
-    //         this->is_body_expected = true;
-    //     }
-    // }
 
     void Connection::process_handlers()
     {
