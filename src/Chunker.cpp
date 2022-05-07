@@ -167,11 +167,6 @@ namespace we
             skip_to_crlf = true;
     }
 
-    // bool ChunckReader::add_to_chunk(const std::string &str)
-    // {
-    //     return add_to_chunk(str.c_str(), str.c_str() + str.size());
-    // }
-
     size_t  ChunckReader::get_file_size() const
     {
         return this->file_size;

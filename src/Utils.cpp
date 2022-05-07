@@ -25,6 +25,7 @@ namespace we
         ids_time[id] += (clock() - start[id]) / (float)(CLOCKS_PER_SEC/1000);
     }
 
+    // TODO: clear debugging functions
     void                        print_ids_time()
     {
         for (int i = 0; i < 256; i++)
@@ -210,7 +211,7 @@ namespace we
         case 505:
             return "HTTP Version Not Supported";
         default:
-            throw std::runtime_error("Unknown status code "+ we::to_string(status_code));
+            throw std::runtime_error("Unknown status code " + we::to_string(status_code));
         }
         return "";
     }

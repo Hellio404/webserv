@@ -188,7 +188,6 @@ namespace we
         // TODO: check if fd < 0
 
         assert(type != None && type != Error);
-        std::cerr << "Adding fd " << fd << " to the select multiplexing" << std::endl;
         switch (type)
         {
         case Read:
@@ -207,11 +206,8 @@ namespace we
 
     void MultiplexingSelect::remove(int fd)
     {
-        std::cerr << "remove " << fd  << std::endl;
         FD_CLR(fd, &this->_read_set);
         FD_CLR(fd, &this->_write_set);
-
-        std::cerr << "ISSET " << FD_ISSET(fd, &this->_read_set) << " " << FD_ISSET(fd, &this->_write_set) << std::endl;
     }
 
     int MultiplexingSelect::wait()

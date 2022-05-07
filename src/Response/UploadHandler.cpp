@@ -31,7 +31,7 @@ namespace we
 
                 struct stat st;
                 if (stat(uploaded_file.c_str(), &st) != 0 || S_ISDIR(st.st_mode))
-                    throw std::runtime_error("File not found");
+                    throw we::HTTPStatusException(500, "Internal Server Error");
 
                 set_file_metadata(con, &st);
 

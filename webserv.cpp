@@ -12,6 +12,7 @@ int main(int ac, char **av)
     we::Config config;
     we::AMultiplexing *multiplexer = NULL;
     we::EventLoop eventLoop;
+
     try
     {
         we::load_config("./conf/webserv.conf", config);
@@ -21,8 +22,9 @@ int main(int ac, char **av)
         std::cerr << e.what() << std::endl;
         return 1;
     }
-    if (av[1])
-        std::cerr << config.get_server_block(4, "sdsd")->get_location(av[1]) << std::endl;
+
+    // TODO: get config path from argv
+
     multiplexer = we::get_instance(config.multiplex_type);
     if (multiplexer == NULL)
     {
@@ -42,33 +44,23 @@ int main(int ac, char **av)
         multiplexer->wait(eventLoop.get_next_activation_time());
 
         int fd;
-        
         while ((fd = multiplexer->get_next_fd()) != -1)
         {
             we::Connection *connection = multiplexer->get_connection(fd);
-            
+
             try
             {
                 if (connection == NULL)
                     new we::Connection(fd, eventLoop, config, *multiplexer);
                 else
-                {
                     connection->handle_connection();
-                }
             }
             catch(...)
             {
                 if (connection)
                     delete connection;
             }
-            
-            
-
         }
         eventLoop.run();
     }
-    
-
-   
-    
 }

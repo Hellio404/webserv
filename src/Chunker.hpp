@@ -38,8 +38,6 @@ namespace we
 
         void get_next_chunked_size(const char *it, const char *end);
 
-        // bool add_to_chunk(const std::string &str);
-
         size_t  get_file_size() const;
 
         ~ChunckReader();

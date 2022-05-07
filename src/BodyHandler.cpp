@@ -96,7 +96,6 @@ namespace we
             delete de_chunker;
         if (tmpfile.is_open())
             tmpfile.close();
-        std::cerr << tmpfile_name << std::endl;
         if (!is_moved)
             remove(tmpfile_name.c_str());
     }

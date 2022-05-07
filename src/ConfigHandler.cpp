@@ -515,7 +515,6 @@ namespace we
         std::cout << "\t\t\tAutoindex : " << (val.autoindex ? "true" : "false") << std::endl;
         std::cout << "\t\t\tAllow upload : " << (val.allow_upload ? "true" : "false") << std::endl;
         std::cout << "\t\t\tAllow dir : " << val.upload_dir << std::endl;
-        // std::cout << "\t\t\tAllow methods : " << val.allowed_methods << std::endl;
     }
 
     static void print_server_block_info(const ServerBlock & val)

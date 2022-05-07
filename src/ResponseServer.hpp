@@ -35,7 +35,6 @@ namespace we
         unsigned int        get_status_code();
         void                transform_data(std::string &);
         std::string         make_response_header(const HeaderMap&);
-    
 
         virtual void        load_next_data(std::string &) = 0;
         virtual             ~ResponseServer();
@@ -50,9 +49,7 @@ namespace we
 
     public:
         ResponseServerFile(Connection *);
-        
         void    load_next_data(std::string &);
-        
         ~ResponseServerFile();
     };
 
@@ -71,9 +68,7 @@ namespace we
 
     public:
         ResponseServerDirectory(Connection *);
-    
         void    load_next_data(std::string &);
-        
         ~ResponseServerDirectory();
     };
 
@@ -90,7 +85,6 @@ namespace we
         std::vector<std::string>                    boundries;
         size_t                                      boundry;
         bool                                        add_header;
-
 
     public:
         ResponseServerFileMultiRange(Connection *);
@@ -111,5 +105,4 @@ namespace we
         void    load_next_data(std::string &);
         ~ResponseServerFileSingleRange();
     };
-
 }

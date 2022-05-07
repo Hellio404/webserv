@@ -55,7 +55,7 @@ namespace we
     {
         HeaderMap::const_iterator resp_code = this->connection->res_headers.find("@response_code");
         if (resp_code == this->connection->res_headers.end())
-            throw std::runtime_error("ResponseServer::make_response_header: @response_code not found");
+            throw we::HTTPStatusException(500, "Internal Server Error");
         else
             this->status_code = std::atoi(resp_code->second.c_str());
         this->str_status_code = resp_code->second;
@@ -111,7 +111,7 @@ namespace we
             return;
         }
         else if (!this->file.is_open())
-            throw std::runtime_error("File not opened");
+            throw we::HTTPStatusException(500, "Internal Server Error");
 
         con->res_headers.insert(std::make_pair("Content-Length", we::to_string(con->content_length)));
         con->res_headers.insert(std::make_pair("Content-Type", con->mime_type));

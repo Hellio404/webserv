@@ -47,7 +47,6 @@ namespace we
 
     Connection::~Connection()
     {
-        std::cerr << "Client connection closed: " << this->client_sock << std::endl;
         if (this->client_timeout_event)
             this->loop.remove_event(*this->client_timeout_event);
         this->multiplexing.remove(this->client_sock);
@@ -58,7 +57,6 @@ namespace we
             delete[] this->client_body_buffer;
         if (this->response_server != NULL)
             delete this->response_server;
-
     }
 
     void Connection::print_headers()
@@ -158,7 +156,7 @@ namespace we
                     this->res_headers.insert(std::make_pair("@response_code", we::to_string(dynamic_cast<we::HTTPStatusException *>(&e)->statusCode)));
                 else
                     this->res_headers.insert(std::make_pair("@response_code", "500"));
-                this->requested_resource = ""; // this will fail to open and default to our own error page
+                this->requested_resource = this->location->get_error_page(500);
                 this->status = Connection::Write; 
                 this->multiplexing.remove(this->client_sock);
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
@@ -190,6 +188,7 @@ namespace we
 
                 if (recv_ret <= 0)
                     goto close_connection;
+
                 if (this->body_handler->add_data(this->client_headers_buffer, this->client_headers_buffer + recv_ret))
                 {
                     this->status = Connection::Write;
@@ -205,14 +204,23 @@ namespace we
                         this->loop.remove_event(*this->client_timeout_event);
                     this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, this->location->client_body_timeout);
                 }
-
             }
-            catch(const std::exception& e)
+            catch(const we::HTTPStatusException& e)
             {
-                std::cerr << e.what() << '\n';
-                goto close_connection; // TODO: handle errors
+                this->response_type = Connection::ResponseType_File;
+                this->res_headers.insert(std::make_pair("@response_code", we::to_string(e.statusCode)));
+                this->requested_resource = this->location->get_error_page(e.statusCode);
+
+                this->status = Connection::Write;
+                this->multiplexing.remove(this->client_sock);
+                this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+
+                this->phase = Phase_End;
+                response_server_handler(this);
+                if (this->client_timeout_event)
+                    this->loop.remove_event(*this->client_timeout_event);
+                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
             }
-            
         }
         else if (this->status == Connection::Write)
         {
