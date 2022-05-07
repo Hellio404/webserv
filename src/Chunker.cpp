@@ -20,7 +20,7 @@ namespace we
         while (buffer != end)
         {
             if (!wait_for_size && need_digit)
-                throw std::runtime_error("Invalid size.");
+                throw we::HTTPStatusException(400, "Bad request");
             if (wait_for_size)
                 add_to_chunksize(buffer, end);
             else if (next_chunk_size > 0)
@@ -114,7 +114,7 @@ namespace we
             skip_crlf = false;
         }
         if (skip_crlf || skip_lf)
-            throw std::runtime_error("Expected CRLF");
+            throw we::HTTPStatusException(400, "Bad request");
         const char *newline = reinterpret_cast<const char *>(memchr(buffer, '\n', end - buffer));
         if (!newline && !skip_to_lf)
         {
@@ -133,7 +133,7 @@ namespace we
                 wait_for_size = false;
             }
             else
-                throw std::runtime_error("Expected LF");
+                throw we::HTTPStatusException(400, "Bad request");
         }
         else
         {
@@ -153,12 +153,12 @@ namespace we
         while (it != end && *it != ';' && *it != '\r')
         {
             if (!isxdigit(*it))
-                throw std::runtime_error("Invalid chunk size");
+                throw we::HTTPStatusException(400, "Bad request");
             need_digit = false;
             this->next_chunk_size *= 16;
             this->next_chunk_size += char_to_hex(*it);
             if (next_chunk_size > max_chunk_size)
-                throw std::runtime_error("Chunk size too big");
+                throw we::HTTPStatusException(400, "Bad request");
             it++;
         }
         if (it != end && *it == '\r')

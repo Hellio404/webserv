@@ -46,12 +46,23 @@ int main(int ac, char **av)
         while ((fd = multiplexer->get_next_fd()) != -1)
         {
             we::Connection *connection = multiplexer->get_connection(fd);
-            if (connection == NULL)
-                new we::Connection(fd, eventLoop, config, *multiplexer);
-            else
+            
+            try
             {
-                connection->handle_connection();
+                if (connection == NULL)
+                    new we::Connection(fd, eventLoop, config, *multiplexer);
+                else
+                {
+                    connection->handle_connection();
+                }
             }
+            catch(...)
+            {
+                if (connection)
+                    delete connection;
+            }
+            
+            
 
         }
         eventLoop.run();

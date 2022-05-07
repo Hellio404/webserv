@@ -9,11 +9,15 @@ namespace we
         this->de_chunker = NULL;
         this->filesize = 0;
         if (!con->location)
-            throw std::runtime_error("No location block");
+            throw we::HTTPStatusException(500, "Internal server error");
         this->open_tmpfile();
         this->buffer_size = con->location->client_body_buffer_size;
         if (con->is_body_chunked)
+        {
             de_chunker = new ChunckReader(this->tmpfile, this->buffer_size);
+            if (!de_chunker)
+                throw we::HTTPStatusException(500, "Internal server error");
+        }
         else
             buffer_data.reserve(this->buffer_size);
     }
@@ -27,7 +31,7 @@ namespace we
                 con->client_remaining_data = std::string(start, end);
             filesize = de_chunker->get_file_size();
             if (filesize > con->location->client_max_body_size)
-                throw std::runtime_error("Body size too big"); // TODO: throw a better exception
+                throw we::HTTPStatusException(413, "Request Entity Too Large");
             return ret;
         }
         if ((end - start) + filesize + buffer_data.size() >= con->client_content_length)
@@ -63,12 +67,12 @@ namespace we
         char tmp_file_name[] = "./tmp/we_better_nginx_tmpfile_XXXXXX";
         int fd = mkstemp(tmp_file_name);
         if (fd == -1)
-            throw std::runtime_error("Cannot create tmp file");
+            throw we::HTTPStatusException(500, "Internal Server Error");
         close(fd);
         tmpfile_name = tmp_file_name;
         tmpfile.open(tmpfile_name, std::ios::out | std::ios::binary);
         if (!tmpfile.is_open())
-            throw std::runtime_error("Cannot open tmp file");
+            throw we::HTTPStatusException(500, "Internal Server Error");
     }
 
     void BodyHandler::move_tmpfile(std::string const &dest_path)
@@ -80,8 +84,9 @@ namespace we
         }
         if (tmpfile.is_open())
             tmpfile.close();
+        if (rename(tmpfile_name.c_str(), dest_path.c_str()))
+            throw we::HTTPStatusException(500, "Internal Server Error");
         this->is_moved = true;
-        rename(tmpfile_name.c_str(), dest_path.c_str());
         tmpfile_name = dest_path;
     }
 

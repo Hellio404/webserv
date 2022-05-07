@@ -89,7 +89,16 @@ namespace we
     {
         this->file.open(con->requested_resource.c_str(), std::ifstream::in | std::ifstream::binary);
         con->to_chunk = false;
-        if (!this->file.is_open() && this->status_code / 100 > 2)
+        if (!this->file.is_open() && is_bodiless_response(this->status_code))
+        {
+            this->ended = true;
+            con->res_headers.insert(std::make_pair("Content-Length", "0"));
+            con->res_headers.insert(std::make_pair("Content-Type", "text/html"));
+            // create the headers
+            this->internal_buffer = this->make_response_header(this->connection->res_headers);
+            return;
+        }
+        else if (!this->file.is_open() && this->status_code != 200)
         {
             std::string buf = get_default_page_code(this->status_code);
             this->ended = true;
@@ -106,7 +115,11 @@ namespace we
 
         con->res_headers.insert(std::make_pair("Content-Length", we::to_string(con->content_length)));
         con->res_headers.insert(std::make_pair("Content-Type", con->mime_type));
-        con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+        try
+        {
+            con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+        }
+        catch(...) {}
         con->res_headers.insert(std::make_pair("Etag", con->etag));
 
         if (this->status_code == 200)
@@ -144,7 +157,7 @@ namespace we
             throw std::runtime_error("Unable to open file");
 
         std::vector<Range>::const_iterator it = con->ranges.begin();
-        std::string *content_type = &con->mime_type; // TODO: always mime_type ?
+        std::string *content_type = &con->mime_type;
 
         size_t boundry = we::get_next_boundry();
         size_t content_len = 0;
@@ -158,7 +171,11 @@ namespace we
         content_len += this->boundries.back().size();
         con->res_headers.insert(std::make_pair("content-type", "multipart/byteranges; boundary=" + we::to_string(boundry, 20, '0')));
         con->res_headers.insert(std::make_pair("Content-Length", we::to_string(content_len)));
-        con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+         try
+        {
+            con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+        }
+        catch(...) {}
         con->res_headers.insert(std::make_pair("ETag", con->etag));
         this->internal_buffer = this->make_response_header(this->connection->res_headers);
         this->current_boundry = this->boundries.begin();
@@ -308,7 +325,11 @@ namespace we
         con->res_headers.insert(std::make_pair("Content-Range", content_range));
         con->res_headers.insert(std::make_pair("Content-Length", we::to_string(this->range.second - this->range.first)));
         con->res_headers.insert(std::make_pair("Content-Type", con->mime_type));
-        con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+         try
+        {
+            con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
+        }
+        catch(...) {}
         con->res_headers.insert(std::make_pair("Etag", con->etag));
         this->internal_buffer = this->make_response_header(con->res_headers);
     }

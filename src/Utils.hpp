@@ -71,5 +71,6 @@ namespace we
 
     size_t                      number_len(size_t s);
 
+    bool                        is_bodiless_response(unsigned int);
 
 }

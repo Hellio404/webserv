@@ -80,7 +80,6 @@ namespace we
 
         long long                                                           client_content_length;
         unsigned long long                                                  keep_alive:1;
-        unsigned long long                                                  expect:1;
         unsigned long long                                                  is_body_chunked:1;
         unsigned long long                                                  to_chunk:1;
 

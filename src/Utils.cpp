@@ -283,4 +283,19 @@ namespace we
         return len;
     }
 
+    bool                        is_bodiless_response(unsigned int status_code)
+    {
+        switch (status_code)
+        {
+        case 100: // Continue
+        case 101: // Switching Protocols
+        case 204: // No Content
+        case 205: // Reset Content
+        case 304: // Not Modified
+            return true;
+        default:
+            return false;
+        }
+    }
+
 }

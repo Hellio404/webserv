@@ -28,6 +28,7 @@ namespace we
   int post_access_handler(Connection *);
   int index_handler(Connection *);
   int autoindex_handler(Connection *);
+  int upload_handler(Connection *);
   int file_handler(Connection *);
   int redirect_handler(Connection *);
 

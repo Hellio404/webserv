@@ -200,7 +200,6 @@ namespace we
 
         if (getaddrinfo(host.c_str(), port_str.c_str(), &hints, &res))
             throw std::runtime_error(error_to_print(std::string("getaddrinfo ") + strerror(errno), data));
-
         if (res == NULL)
             throw std::runtime_error(error_to_print("host not found in \"" + host + ":" + port_str + "\"  of the \"listen\" directive", data));
 
@@ -223,6 +222,8 @@ namespace we
         if (bind(listen_fd, res->ai_addr, res->ai_addrlen) < 0)
             throw std::runtime_error(std::string("bind ") + strerror(errno));
 
+        freeaddrinfo(res);
+        
         if (listen(listen_fd, 1024) < 0)
             throw std::runtime_error(std::string("listen ") + strerror(errno));
 
@@ -471,11 +472,14 @@ namespace we
         }
 
 
-        // FIXME: This needs to change
         location_config.handlers[Phase_Reserved_1].push_back(&we::pre_access_handler);
         location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
         location_config.handlers[Phase_Access].push_back(&we::index_handler);
+
         location_config.handlers[Phase_Access].push_back(&we::autoindex_handler);
+
+        // Upload related handlers
+        location_config.handlers[Phase_Access].push_back(&we::upload_handler);
 
         // File related handlers
         location_config.handlers[Phase_Access].push_back(&we::conditional_handler);

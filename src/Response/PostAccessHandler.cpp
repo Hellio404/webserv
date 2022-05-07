@@ -36,8 +36,11 @@ namespace we
                 con->last_modified = st.st_mtime * 1000;
                 con->mime_type = con->config.get_mime_type(con->requested_resource);
             }
-
         }
+
+        if (con->res_headers.find("@response_code")->second[0] >= '4')
+            con->keep_alive = false;
+
         return 1;
     }
 }
