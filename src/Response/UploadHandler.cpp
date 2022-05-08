@@ -35,7 +35,12 @@ namespace we
 
                 struct stat st;
                 if (stat(uploaded_file.c_str(), &st) != 0 || S_ISDIR(st.st_mode))
-                    throw we::HTTPStatusException(500, "Internal Server Error");
+                {
+                    con->response_type = Connection::ResponseType_File;
+                    con->res_headers.insert(std::make_pair("@response_code", "500"));
+                    con->requested_resource = con->location->get_error_page(500);
+                    return 1;
+                }
 
                 set_file_metadata(con, &st);
 
@@ -45,6 +50,55 @@ namespace we
                 return 1;
             }
             catch (...)
+            {
+                con->response_type = Connection::ResponseType_File;
+                con->res_headers.insert(std::make_pair("@response_code", "500"));
+                con->requested_resource = con->location->get_error_page(500);
+                return 1;
+            }
+        }
+
+        if (con->req_headers["@method"] == "DELETE" && con->location->allow_upload)
+        {
+            try
+            {
+                std::string uploaded_file = we::get_file_fullpath(con->location->upload_dir, con->expanded_url);
+
+                int fd = -1;
+                struct stat st;
+                if (stat(uploaded_file.c_str(), &st))
+                {
+                    con->response_type = Connection::ResponseType_File;
+                    con->res_headers.insert(std::make_pair("@response_code", "404"));
+                    con->requested_resource = con->location->get_error_page(404);
+                    return 1;
+                }
+                else if (S_ISDIR(st.st_mode))
+                {
+                    con->response_type = Connection::ResponseType_File;
+                    con->res_headers.insert(std::make_pair("@response_code", "403"));
+                    con->requested_resource = con->location->get_error_page(403);
+                    return 1;
+                }
+
+                fd = open(uploaded_file.c_str(), O_RDONLY);
+                if (fd == -1)
+                {
+                    con->response_type = Connection::ResponseType_File;
+                    con->res_headers.insert(std::make_pair("@response_code", "403"));
+                    con->requested_resource = con->location->get_error_page(403);
+                    return 1;
+                }
+
+                unlink(uploaded_file.c_str());
+                close(fd);
+
+                con->response_type = Connection::ResponseType_File;
+                con->res_headers.insert(std::make_pair("@response_code", "200"));
+                con->requested_resource = con->location->get_error_page(200);
+                return 1;
+            }
+            catch(...)
             {
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "500"));
