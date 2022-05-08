@@ -6,12 +6,7 @@ namespace we
 {
     int logger_handler(Connection *con)
     {
-        Logger &logger = Logger::get_instance();
-
-        logger.log(con);
-
+        we::Logger::get_instance().log(con);
         return 1;
     }
 }
-
-

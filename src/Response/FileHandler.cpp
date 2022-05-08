@@ -3,10 +3,10 @@
 #include "Connection.hpp"
 #include "Date.hpp"
 
-#include <iomanip>
-
 namespace we
 {
+    typedef unsigned long long ull;
+
     static unsigned long long range_utoa(std::string::const_iterator begin, std::string::const_iterator end, bool &valid)
     {
         unsigned long long ret = 0;
@@ -26,8 +26,6 @@ namespace we
         valid = true;
         return ret;
     }
-
-    typedef unsigned long long ull;
 
     static bool handle_range(std::string const &range, std::vector<std::pair<ull, ull> > &vranges, ull max_size)
     {
@@ -59,7 +57,7 @@ namespace we
                 it_start = it;
                 while (it != range.end() && *it != ',')
                     ++it;
-                
+
                 if (it == it_start && !reverse)
                     r.second = max_size - 1;
                 else if (!reverse)
@@ -90,6 +88,7 @@ namespace we
         {
             return false;
         }
+
         if (ranges.empty())
             return false;
 
@@ -167,8 +166,6 @@ namespace we
                     con->metadata_set = true;
                     con->response_type = Connection::ResponseType_RangeFile;
                     con->res_headers.insert(std::make_pair("@response_code", "206"));
-                    con->res_headers.insert(std::make_pair("@handler", "file_handler/range"));
-                    con->res_headers.insert(std::make_pair("@file", requested_resource));
                     return 1;
                 }
                 else
@@ -176,8 +173,6 @@ namespace we
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("Content-Range", "bytes */" + content_length));
                     con->res_headers.insert(std::make_pair("@response_code", "416"));
-                    con->res_headers.insert(std::make_pair("@handler", "file_handler/range"));
-                    con->res_headers.insert(std::make_pair("@file", requested_resource));
                     con->requested_resource = con->location->get_error_page(416); // TODO: recalculate length
                     return 1;
                 }
@@ -188,11 +183,10 @@ namespace we
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "200"));
             con->res_headers.insert(std::make_pair("@content-length", content_length));
-            con->res_headers.insert(std::make_pair("@handler", "file_handler"));
-            con->res_headers.insert(std::make_pair("@file", requested_resource));
 
             return 1;
         }
+
         return 0;
     }
 }

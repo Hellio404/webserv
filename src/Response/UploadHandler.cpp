@@ -7,14 +7,18 @@ namespace we
     {
         assert(st != NULL);
 
-        con->etag = "\"" + we::to_hex(st->st_mtime) + "-" + we::to_hex(st->st_size) + "\"";
-        con->last_modified = st->st_mtime * 1000;
-
-        con->res_headers.insert(std::make_pair("ETag", con->etag));
         try
         {
+            con->etag = "\"" + we::to_hex(st->st_mtime) + "-" + we::to_hex(st->st_size) + "\"";
+            con->last_modified = st->st_mtime * 1000;
+
+            con->res_headers.insert(std::make_pair("ETag", con->etag));
             con->res_headers.insert(std::make_pair("Last-Modified", con->last_modified.get_date_str()));
-        } catch(...) {}
+        }
+        catch (...)
+        {
+            // Ignore exception
+        }
     }
 
     int upload_handler(Connection *con)
@@ -38,15 +42,13 @@ namespace we
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "201"));
                 con->requested_resource = con->location->get_error_page(201);
-                con->res_headers.insert(std::make_pair("@handler", "upload"));
                 return 1;
             }
-            catch(...)
+            catch (...)
             {
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "500"));
                 con->requested_resource = con->location->get_error_page(500);
-                con->res_headers.insert(std::make_pair("@handler", "upload"));
                 return 1;
             }
         }
