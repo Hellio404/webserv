@@ -111,15 +111,18 @@ namespace we
 
     class ResponseServerCGI : public ResponseServer, public BaseConnection
     {
-        int     fds[2];
-        pid_t   pid;
-        bool    headers_ended;
-
-        char    **env;
-        std::string header_buffer;
+        int             fds[2];
+        pid_t           pid;
+        bool            headers_ended;
+        EventData       event_data;
+        const Event     *event;
+        char            **env;
+        std::string     header_buffer;
 
         bool set_environment();
+        bool check_bad_exit();
     public:
+        void timeout();
         ResponseServerCGI(Connection *);
         ~ResponseServerCGI();
         void    load_next_data(std::string &);

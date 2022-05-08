@@ -62,7 +62,6 @@ int EventLoop::run()
         const struct timeval now = get_current_time();
         if (time_cmp_lteq(it->activation_time, now))
         {
-            std::cerr << "event " << it->id << " ready to be executed" << std::endl;
             it->handler(it->data);
             if (it->periodic)
             {

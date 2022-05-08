@@ -200,7 +200,6 @@ namespace we
     {
 
         this->consume('{');
-        // std::cerr <<"\n" << std::string(level, '\t') << "{" << std::endl;
         // this->level++;
         this->file_level++;
         size_t old_block = current_block;

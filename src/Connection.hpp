@@ -34,6 +34,7 @@ namespace we
     private:
         typedef unsigned long long ull;
 
+        static ull connection_count;
     public:
         enum Status
         {
@@ -41,6 +42,7 @@ namespace we
             ReadBody,
             Write,
             Idle,
+            Close,
             Timeout
         };
 
@@ -111,8 +113,12 @@ namespace we
 
         Connection(int, EventLoop&, const Config&, AMultiplexing&);
         ~Connection();
+
         void        handle_connection();
+        void        set_timeout(long long);
+        void        set_body_timeout(long long);
         void        timeout();
+        static ull  get_connection_count();
 
     private:
         typedef std::map<std::string, std::string, LessCaseInsensitive>     map_type;
@@ -135,6 +141,5 @@ namespace we
         bool        process_file_for_response();
         void        get_info_headers();
         void        reset();
-
     };
 }
