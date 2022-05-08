@@ -1,12 +1,16 @@
 #pragma once
 
 #include "Utils.hpp"
-
+#include <signal.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cstdlib>
+#include <map>
+#include "Connection.hpp"
+#include "ConnectionBase.hpp"
 
 namespace we
 {
@@ -14,44 +18,111 @@ namespace we
     {
         ResponseServer();
     protected:
-        ssize_t     last_read_bytes;
-        ssize_t     offset;
-        ssize_t     buffer_offset;
-        bool        to_chunk;
-        bool        ended;
-        std::string internal_buffer;
-
+        ssize_t         last_read_bytes;
+        ssize_t         buffer_offset;
+        long long       buffer_size;
+        unsigned int    status_code;
+        std::string     str_status_code;
+        bool            ended;
+        std::string     internal_buffer;
+        Connection      *connection;
+        char *          _buffer;
     public:
-        ResponseServer(bool);
-        virtual ~ResponseServer();
+        typedef std::multimap<std::string, std::string, LessCaseInsensitive>    HeaderMap;
+        
+        ResponseServer(Connection *);
 
-        ssize_t &get_next_data(std::string &, size_t, bool &) ;
-        virtual ssize_t &load_next_data(std::string &, size_t, bool &) = 0;
-        ssize_t &transform_data(std::string &);
+        ssize_t&            get_next_data(std::string &, bool &) ;
+        unsigned int        get_status_code();
+        void                transform_data(std::string &);
+        std::string         make_response_header(const HeaderMap&);
+
+        virtual void        load_next_data(std::string &) = 0;
+        virtual             ~ResponseServer();
     };
+
+    //................................................\\/
 
     class ResponseServerFile : public ResponseServer
     {
-        std::ifstream file;
-        std::string file_path;
-        unsigned int error_code;
+        std::ifstream   file;
+        std::string     file_path;
 
     public:
-        ResponseServerFile(std::string const &, unsigned int, bool = false);
-        ssize_t &load_next_data(std::string &, size_t, bool &);
+        ResponseServerFile(Connection *);
+        void    load_next_data(std::string &);
+        ~ResponseServerFile();
     };
+
+    //................................................\\/
 
     class ResponseServerDirectory : public ResponseServer
     {
     protected:
-        std::string location;
-        std::string dir_path;
-        std::string response_buffer;
+        std::string     location;
+        std::string     dir_path;
+        std::string     response_buffer;
+        long long       offset;
+
 
         void load_directory_listing();
 
     public:
-        ResponseServerDirectory(std::string const &, std::string const &, bool = false);
-        ssize_t &load_next_data(std::string &, size_t, bool &);
+        ResponseServerDirectory(Connection *);
+        void    load_next_data(std::string &);
+        ~ResponseServerDirectory();
+    };
+
+    //................................................\\/
+
+    class ResponseServerFileMultiRange : public ResponseServer
+    {
+        typedef std::pair<unsigned long long, unsigned long long>    Range;
+
+        std::ifstream                               file;
+        long long                                   offset;
+        std::vector<std::string>::const_iterator    current_boundry;
+        std::vector<Range>::iterator                current_range;
+        std::vector<std::string>                    boundries;
+        size_t                                      boundry;
+        bool                                        add_header;
+
+    public:
+        ResponseServerFileMultiRange(Connection *);
+        void    load_next_data(std::string &);
+        ~ResponseServerFileMultiRange();
+    };
+
+    class ResponseServerFileSingleRange : public ResponseServer
+    {
+        typedef std::pair<unsigned long long, unsigned long long>    Range;
+
+        std::ifstream                               file;
+        long long                                   offset;
+        Range                                       range;
+
+    public:
+        ResponseServerFileSingleRange(Connection *);
+        void    load_next_data(std::string &);
+        ~ResponseServerFileSingleRange();
+    };
+
+    //................................................\\/
+
+    class ResponseServerCGI : public ResponseServer, public BaseConnection
+    {
+        int     fds[2];
+        pid_t   pid;
+        bool    headers_ended;
+
+        char    **env;
+        std::string header_buffer;
+
+        bool set_environment();
+    public:
+        ResponseServerCGI(Connection *);
+        ~ResponseServerCGI();
+        void    load_next_data(std::string &);
+        void    handle_connection();
     };
 }

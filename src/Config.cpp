@@ -10,6 +10,9 @@ namespace we
         this->client_header_timeout = 60 * 1000;
         this->client_header_buffer_size = 4 * 1024;
         this->client_max_header_size = 16 * 1024 * 1024;
+        this->max_internal_redirect = 10;
+
+        this->default_type = "application/octet-stream";
     }
 
     const ServerBlock   *Config::get_server_block(int socket, const std::string &host) const
@@ -30,6 +33,22 @@ namespace we
         return &pos->second.front();
     }
 
+    std::string         Config::get_mime_type(const std::string &filepath) const
+    {
+        std::string::size_type pos = filepath.rfind('.');
+
+        if (pos == std::string::npos)
+            return this->default_type;
+
+        std::string ext = filepath.substr(pos + 1);
+        std::map<std::string, std::string>::const_iterator it = this->mime_types.find(ext);
+
+        if (it != this->mime_types.end())
+            return it->second;
+
+        return this->default_type;
+    }
+
     ServerBlock::ServerBlock()
     {
         this->listen_socket = -1;
@@ -43,7 +62,6 @@ namespace we
 
     const LocationBlock *ServerBlock::get_location(const std::string& uri) const
     {
-
         std::vector<LocationBlock>::const_iterator it = this->locations.begin();
         const LocationBlock *regex = NULL;
         const LocationBlock *normal = NULL;
@@ -71,7 +89,6 @@ namespace we
                 default:
                     break;
             }
-            
         }
         if (regex)
             return regex;
@@ -82,7 +99,7 @@ namespace we
     {
         this->client_body_timeout = 60 * 1000;
         this->client_body_in_file = false;
-        this->client_body_buffer_size = 4 * 1024;
+        this->client_body_buffer_size = 2 * 1024 * 1024;
         this->client_max_body_size = 16 * 1024 * 1024;
         this->regex = NULL;
         this->pattern = "/";
@@ -93,9 +110,17 @@ namespace we
         char tmp[PATH_MAX];
         getcwd(tmp, PATH_MAX);
         this->root = tmp;
+        this->upload_dir = tmp;
 
         this->autoindex = false;
         this->allow_upload = false;
+
+        this->handlers.resize(PHASE_NUMBER);
+        this->is_redirection = false;
+        this->return_code = 404;
+
+        memset(&this->allowed_methods, 0, sizeof(this->allowed_methods));
+        this->allowed_method_found = false;
     }
 
     LocationBlock::~LocationBlock()
@@ -103,37 +128,56 @@ namespace we
         if (this->regex)
             delete this->regex;
     }
+
     LocationBlock::LocationBlock(LocationBlock const &other)
     {
         this->client_body_timeout = other.client_body_timeout;
         this->client_body_in_file = other.client_body_in_file;
         this->client_body_buffer_size = other.client_body_buffer_size;
         this->client_max_body_size = other.client_max_body_size;
-        
+
         this->pattern = other.pattern;
         this->modifier = other.modifier;
         if (other.regex)
             this->regex = new ft::Regex(this->pattern, this->modifier == LocationBlock::Modifier_regex_icase ? ft::Regex::iCase : 0);
         else
             this->regex = NULL;
+
         this->index = other.index;
         this->root = other.root;
         this->autoindex = other.autoindex;
         this->allow_upload = other.allow_upload;
         this->upload_dir = other.upload_dir;
         this->allowed_methods = other.allowed_methods;
+        this->handlers = other.handlers;
+        this->error_pages = other.error_pages;
+        this->is_redirection = other.is_redirection;
+        this->redirect_url = other.redirect_url;
+        this->return_code = other.return_code;
+        this->allowed_method_found = other.allowed_method_found;
+        this->cgi = other.cgi;
+        this->added_headers = other.added_headers;
+    }
+
+    std::string LocationBlock::get_error_page(int status) const
+    {
+        if (this->error_pages.count(status))
+            return this->error_pages.find(status)->second;
+        return "";
     }
 
     bool    LocationBlock::is_allowed_method(std::string method) const
     {
         if (method == "GET")
-            return this->allowed_methods.get >= 0;
+            return this->allowed_methods.get >= allowed_method_found;
         else if (method == "POST")
-            return this->allowed_methods.post >= 0;
+            return this->allowed_methods.post >= allowed_method_found;
         else if (method == "PUT")
-            return this->allowed_methods.put >= 0;
+            return this->allowed_methods.put >= allowed_method_found;
         else if (method == "HEAD")
-            return this->allowed_methods.head >= 0;
+            return this->allowed_methods.head >= allowed_method_found;
+        else if (method == "DELETE")
+            return this->allowed_methods.del >= allowed_method_found;
         else
             return false;
     }
@@ -144,6 +188,7 @@ namespace we
         we::register_directive("include", 1, 0, false, true, true, true, true);
         we::register_directive("server", 0, 0, true, true, true, false, false);
         we::register_directive("location", 1, 1, true, true, false, true, false);
+        we::register_directive("types", 0, 0, true, false, true, false, false);
 
         // Root level directives
         we::register_directive("use_events", 1, 0, false, false, true, false, false);
@@ -161,19 +206,23 @@ namespace we
         we::register_directive("keep_alive_timeout", 1, 0, false, false, true, true, false);
         we::register_directive("enable_lingering_close", 1, 0, false, false, true, true, false);
         we::register_directive("lingering_close_timeout", 1, 0, false, false, true, true, false);
-
+        we::register_directive("add_header", 2, 0, false, true, true, true, true);
+        
         // Location level directives
         we::register_directive("root", 1, 0, false, false, true, true, true);
         we::register_directive("index", 1, -1, false, false, true, true, true);
         we::register_directive("autoindex", 1, 0, false, false, false, true, true);
         we::register_directive("allow_upload", 1, 0, false, false, false, false, true);
         we::register_directive("upload_dir", 1, 0, false, false, false, false, true);
+        we::register_directive("error_page", 2, -1, false, true, true, true, true);
         we::register_directive("allowed_methods", 1, -1, false, false, true, true, true);
         we::register_directive("denied_methods", 1, -1, false, false, true, true, true);
         we::register_directive("client_body_timeout", 1, 0, false, false, true, true, true);
         we::register_directive("client_body_in_file", 1, 0, false, false, true, true, true);
         we::register_directive("client_body_buffer_size", 1, 0, false, false, true, true, true);
         we::register_directive("client_max_body_size", 1, 0, false, false, true, true, true);
+        we::register_directive("return", 2, 0, false, false, false, false, true);
+        we::register_directive("cgi_pass", 1, 0, false, false, false, false, true);
     }
 
     static void validate_config(Config &config)
@@ -221,7 +270,6 @@ namespace we
         init_config();
 
         parser.block();
-
         assert(parser.blocks.size() > 0);
 
         directive_block *root_block = &parser.blocks[0];
@@ -275,7 +323,7 @@ namespace we
                         {
                             location_config.regex = new ft::Regex(location_config.pattern, flags);
                         }
-                        catch(...)
+                        catch (...)
                         {
                             throw std::runtime_error("Invalid regex pattern in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
                         }
@@ -292,6 +340,25 @@ namespace we
 
                 init_location_directives(location_config, root_block, server_block, location_block);
                 current_server_config->locations.push_back(location_config);
+            }
+            else if (it->name == "types")
+            {
+                std::map <std::string,  std::vector<directive_data> >::iterator it2 = it->directives.begin();
+                for (; it2 != it->directives.end(); ++it2)
+                {
+                    std::vector<directive_data>::iterator it3 = it2->second.begin();
+                    for (; it3 != it2->second.end(); ++it3)
+                    {
+                        std::vector<std::string>::iterator it4 = it3->args.begin();
+                        for (; it4 != it3->args.end(); ++it4)
+                        {
+                            if (config.mime_types.count(*it4))
+                                throw std::runtime_error("Redefinition of the type of the extention " + *it4 +" at "+ it3->path + ":" + std::to_string(it3->line));
+
+                           config.mime_types[*it4] = it2->first;
+                        }
+                    }
+                }
             }
         }
 

@@ -6,7 +6,7 @@ namespace we
     {
     }
 
-    Connection *AMultiplexing::get_connection(int fd)
+    BaseConnection *AMultiplexing::get_connection(int fd)
     {
         return this->_fds_data[fd];
     }
@@ -27,7 +27,7 @@ namespace we
         }
     }
 
-    void MultiplexingKqueue::add(int fd, Connection* data, WatchType type)
+    void MultiplexingKqueue::add(int fd, BaseConnection* data, WatchType type)
     {
         assert(type != None && type != Error);
 
@@ -100,7 +100,7 @@ namespace we
     {
     }
 
-    void MultiplexingPoll::add(int fd, Connection* data, WatchType type)
+    void MultiplexingPoll::add(int fd, BaseConnection* data, WatchType type)
     {
         assert(type != None && type != Error);
 
@@ -128,13 +128,12 @@ namespace we
     void MultiplexingPoll::remove(int fd)
     {
         std::vector<struct pollfd>::iterator it = this->_fd_list.begin();
-        for (; it != this->_fd_list.end(); ++it)
+        while (it != this->_fd_list.end())
         {
-            if ((*it).fd == fd)
-            {
-                this->_fd_list.erase(it);
-                break ;
-            }
+            if (it->fd == fd)
+                it = this->_fd_list.erase(it);
+            else
+                ++it;
         }
     }
 
@@ -176,17 +175,18 @@ namespace we
     {
         FD_ZERO(&this->_read_set);
         FD_ZERO(&this->_write_set);
-        this->_max_fd = 0;
+        this->_max_fd = 10;
     }
 
     MultiplexingSelect::~MultiplexingSelect()
     {
     }
 
-    void MultiplexingSelect::add(int fd, Connection* data, WatchType type)
+    void MultiplexingSelect::add(int fd, BaseConnection* data, WatchType type)
     {
         // TODO: check if there is enough room for the new fd
         // TODO: check if fd < 0
+
         assert(type != None && type != Error);
         switch (type)
         {
@@ -260,7 +260,7 @@ namespace we
         #endif
     }
 
-    AMultiplexing *get_instance(Config::MultiplexingType type)
+    AMultiplexing *get_instance(int type)
     {
         switch (type)
         {

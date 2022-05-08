@@ -26,7 +26,7 @@ namespace we
     public:
         ChunckReader(std::fstream &f, size_t buffer_size);
 
-        bool add_to_chunk(const char *buffer, const char *end);
+        bool add_to_chunk(const char *&buffer, const char *end);
 
         bool trailer_part_ended(const char *&buffer, const char *end);
 
@@ -38,11 +38,8 @@ namespace we
 
         void get_next_chunked_size(const char *it, const char *end);
 
-        bool add_to_chunk(const std::string &str);
-
         size_t  get_file_size() const;
 
         ~ChunckReader();
     };
 }
-

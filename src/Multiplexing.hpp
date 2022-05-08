@@ -9,8 +9,8 @@
 #include <map>
 #include <stdexcept>
 
-#include "Connection.hpp"
 #include "Config.hpp"
+#include "Connection.hpp"
 
 #define HAVE_SELECT 1
 #define HAVE_KQUEUE 1
@@ -33,13 +33,11 @@
 
 namespace we
 {
-    class Connection;
-
-
+    class BaseConnection;
     class AMultiplexing
     {
     protected:
-        std::map<int, Connection *> _fds_data;
+        std::map<int, BaseConnection *> _fds_data;
     public:
 
         enum WatchType
@@ -50,13 +48,13 @@ namespace we
             Error
         };
         
-        virtual void add(int, Connection*, WatchType) = 0;
+        virtual void add(int, BaseConnection*, WatchType) = 0;
         virtual void remove(int) = 0;
         virtual int wait() = 0 ;
         virtual int wait(long long) = 0;
         virtual int get_next_fd() = 0;
         virtual ~AMultiplexing();
-        Connection *get_connection(int);
+        BaseConnection *get_connection(int);
     };
 
 #if HAVE_KQUEUE
@@ -73,7 +71,7 @@ namespace we
         MultiplexingKqueue();
         ~MultiplexingKqueue();
 
-        void add(int, Connection*, WatchType);
+        void add(int, BaseConnection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
@@ -95,7 +93,7 @@ namespace we
         MultiplexingPoll();
         ~MultiplexingPoll();
 
-        void add(int, Connection*, WatchType);
+        void add(int, BaseConnection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
@@ -117,7 +115,7 @@ namespace we
         MultiplexingSelect();
         ~MultiplexingSelect();
 
-        void add(int, Connection*, WatchType);
+        void add(int, BaseConnection*, WatchType);
         void remove(int);
         int wait();
         int wait(long long);
@@ -126,5 +124,5 @@ namespace we
 #endif
 
     std::string     get_instance_name();
-    AMultiplexing   *get_instance(Config::MultiplexingType type);
+    AMultiplexing   *get_instance(int type);
 }

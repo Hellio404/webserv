@@ -8,6 +8,7 @@
 
 namespace we
 {
+    class LocationBlock;
     struct FileStatus
     {
         typedef enum

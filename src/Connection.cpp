@@ -2,419 +2,355 @@
 
 namespace we
 {
-    Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop)
+
+    BaseConnection::~BaseConnection() {}
+
+    static void    timeout_event(EventData data)
     {
-        std::cerr << "New connection " << connected_socket  << std::endl;
+        Connection *conn = reinterpret_cast<Connection *>(data.pointer);
+        conn->timeout();
+        conn->client_timeout_event = NULL;
+    }
+
+    static void    body_timeout_event(EventData data)
+    {
+
+        Connection *conn = reinterpret_cast<Connection *>(data.pointer);
+        conn->keep_alive = false;
+        conn->response_type = Connection::ResponseType_File;
+        conn->res_headers.insert(std::make_pair("@response_code", "408"));
+        conn->requested_resource = conn->location->get_error_page(408);
+        conn->status = Connection::Write;
+        conn->multiplexing.remove(conn->client_sock);
+        conn->multiplexing.add(conn->client_sock, conn, AMultiplexing::Write);
+        conn->phase = Phase_End;
+        response_server_handler(conn);
+        conn->client_timeout_event = &conn->loop.add_event(timeout_event, conn->event_data, conn->server->server_send_timeout);
+    }
+
+    Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, 5000)
+    {
+        this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
+        if (this->client_sock == -1)
+            throw std::runtime_error("accept() failed"); // TODO: try catch when creating a connection
+        this->client_addr_str = inet_ntoa(reinterpret_cast<struct sockaddr_in *>(&this->client_addr)->sin_addr);
+        this->event_data.pointer = this;
         this->connected_socket = connected_socket;
-        this->server = NULL;
-        this->location = NULL;
+
+        
         this->client_headers_buffer = NULL;
         this->client_body_buffer = NULL;
-        this->client_started_header = false;
-        this->is_body_expected = false;
+        this->response_server = NULL;
+        this->body_handler = NULL;
+        this->client_timeout_event = NULL;
+        this->reset();
 
-        this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
-
-        if (this->client_sock == -1)
-            throw std::runtime_error("accept() failed");
-
-        multiplexing.add(this->client_sock, this, AMultiplexing::Read);
-        this->client_headers_buffer = new char[4096];
-        this->status = Connection::Read;
+        this->client_headers_buffer = new char[this->config.client_max_header_size];
     }
 
-    char *Connection::skip_crlf(char *ptr, char*end)
+    Connection::~Connection()
     {
-        while (ptr != end && (*ptr == '\r' || *ptr == '\n'))
-            ptr++;
-        if (ptr != end)
-            this->client_started_header = true;
-        return ptr;
-    }
-
-    bool Connection::end_of_headers(std::string::const_iterator start, std::string::const_iterator end)
-    {
-        size_t  to_skip = 0;
-        while (start != end)
-        {
-            if (*start == '\r' && *(start + 1)   == '\n' && *(start + 2) == '\r' && *(start + 3) == '\n')
-            {
-                to_skip = 4;
-                break ;
-            }
-            if (*start == '\r' && *(start + 1) == '\n' && *(start + 2) == '\n')
-            {
-                to_skip = 3;
-                break ;
-            }
-            if (*start == '\n' && *(start + 1) == '\r' && *(start + 2) == '\n')
-            {
-                to_skip = 3;
-                break ;
-            }
-            if (*start == '\n' && *(start + 1) == '\n')
-            {
-                to_skip = 2;
-                break ;
-            }
-            ++start;
-        }
-        // TODO: move the rest of the data to the body string
-        if (to_skip > 0)
-        {
-            this->client_remaining_data = std::string(start + to_skip, end);
-            this->client_headers.erase(start + to_skip, end);
-            return true;
-        }
-        return false;
+        if (this->client_timeout_event)
+            this->loop.remove_event(*this->client_timeout_event);
+        this->multiplexing.remove(this->client_sock);
+        close(this->client_sock);
+        if (this->client_headers_buffer != NULL)
+            delete[] this->client_headers_buffer;
+        if (this->client_body_buffer != NULL)
+            delete[] this->client_body_buffer;
+        if (this->response_server != NULL)
+            delete this->response_server;
     }
 
     void Connection::print_headers()
     {
         std::map<std::string, std::string, we::LessCaseInsensitive>::const_iterator it;
         for (it = this->req_headers.begin(); it != this->req_headers.end(); ++it)
-        {
             std::cout << it->first << ": " << '\'' << it->second << '\'' << std::endl;
+    }
+    
+    void    Connection::get_info_headers()
+    {
+        if (strcasecmp(this->req_headers["@protocol"].c_str(), "HTTP/1.0") == 0)
+        {
+            this->is_http_10 = true;
+            this->to_chunk = false;
+            this->keep_alive = false;
+        }
+
+        if (this->is_http_10 == false && this->req_headers.find("Connection") != this->req_headers.end() && strcasecmp(this->req_headers["Connection"].c_str(), "close") == 0)
+            this->keep_alive = 0;
+        if (this->is_http_10 == false && this->req_headers.find("Transfer-Encoding") != this->req_headers.end() && strcasecmp(this->req_headers["Transfer-Encoding"].c_str(), "chunked") == 0)
+            this->is_body_chunked = 1;
+
+        if (this->req_headers.find("Content-Length") != this->req_headers.end())
+        {
+            this->client_content_length = atoll(this->req_headers["Content-Length"].c_str());
+            if (this->client_content_length < 0)
+                throw we::HTTPStatusException(400, "");
+            if (this->client_content_length > this->location->client_max_body_size)
+                throw we::HTTPStatusException(413, "");
         }
     }
 
-    void    Connection::handle_connection()
+    void Connection::handle_connection()
     {
         if (this->status == Connection::Read)
         {
-            // TODO: check if client_remaining_data is not empty then read from it instead/
-            // of recv (Keep-Alive)
-            ssize_t recv_ret = recv(this->client_sock, this->client_headers_buffer, 4096, 0);
 
-            std::cerr << "recv_ret: " << recv_ret << std::endl;
-            if (recv_ret <= 0)
+            ssize_t recv_ret;
+            if (this->client_remaining_data.size())
             {
-                std::cerr << "Connection closed by peer\n" << std::endl;
-                goto close_connection;
+                recv_ret = this->client_remaining_data.size();
+                std::memcpy(this->client_headers_buffer, this->client_remaining_data.c_str(), recv_ret);
+                this->client_remaining_data.clear();
             }
-            // TODO: handle error
-            char *buffer_ptr = this->client_headers_buffer;
-            if (!this->client_started_header)
-                buffer_ptr = skip_crlf(buffer_ptr, buffer_ptr + recv_ret);
-            this->client_headers.append(buffer_ptr, recv_ret);
+            else
+                recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
 
-            std::string::const_iterator start = this->client_headers.end();
-            start -= std::min(recv_ret + 4, (ssize_t)this->client_headers.size());
-            if (end_of_headers(start, this->client_headers.end()))
+            if (recv_ret <= 0)
+                goto close_connection;
+
+            try
             {
-                this->parse_request(this->client_headers);
-                if (!this->parse_path(this->req_headers["@path"]))
+                char *str = this->client_headers_buffer;
+                bool end;
+                end = client_header_parser.append(str, str + recv_ret);
+
+                if (end)
                 {
-                    //TODO: handle error
-                    std::cerr << "-------- Bad Request" << std::endl;
-                    goto close_connection;
+                    this->expanded_url = this->req_headers["@expanded_url"]; // Extract the expanded url
+                    this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
 
+                    this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
+                    this->location = this->server->get_location(this->expanded_url);
+                    this->requested_resource = we::get_file_fullpath(this->location->root, this->expanded_url);
+
+                    this->get_info_headers();
+                    if (this->is_body_chunked || this->client_content_length > 0)
+                    {
+                        this->status = Connection::ReadBody;
+                        if (this->client_timeout_event)
+                            this->loop.remove_event(*this->client_timeout_event);
+                        this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, this->location->client_body_timeout);
+                        this->body_handler = new BodyHandler(this); 
+                    }
+                    else
+                    {
+                        this->status = Connection::Write;
+                        this->multiplexing.remove(this->client_sock);
+                        this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+                        if (this->client_timeout_event)
+                            this->loop.remove_event(*this->client_timeout_event);
+                        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+                    }
                 }
-                if (this->req_headers["host"].size() == 0)
-                {
-                    std::cerr << "-------- Bad Request" << std::endl;
-                    goto close_connection;
-                }
-
-                this->client_headers.clear();
-                this->check_potential_body(this->req_headers);  // TODO: later
-                this->status = Connection::Write;
-
+            }
+            catch (std::exception &e)
+            {
+                this->keep_alive = false;
+                this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
+                if (this->req_headers.count("@expanded_url") == 1)
+                    this->location = this->server->get_location(this->req_headers["@expanded_url"]);
+                else
+                    this->location = this->server->get_location("/");
+                this->response_type = Connection::ResponseType_File;
+                if (dynamic_cast<we::HTTPStatusException *>(&e) != NULL)
+                    this->res_headers.insert(std::make_pair("@response_code", we::to_string(dynamic_cast<we::HTTPStatusException *>(&e)->statusCode)));
+                else
+                    this->res_headers.insert(std::make_pair("@response_code", "500"));
+                this->requested_resource = this->location->get_error_page(500);
+                this->status = Connection::Write; 
                 this->multiplexing.remove(this->client_sock);
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
-                this->server = config.get_server_block(this->connected_socket, this->req_headers["host"]);
-                this->location = this->server->get_location(this->req_headers["@expanded_url"]);
-                std::cerr << "Location: "<< location->pattern << std::endl;
-                std::cerr << "FullPath: " << get_file_fullpath(this->location->root, req_headers["@expanded_url"]);
-                // print_headers();
+                this->phase = Phase_End;
+                response_server_handler(this);
+                if (this->client_timeout_event)
+                    this->loop.remove_event(*this->client_timeout_event);
+                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+
+            }
+            catch (...)
+            {
+                goto close_connection;
             }
         }
-        else
+        else if (this->status == Connection::ReadBody)
         {
-            char buffer[] = "HTTP/1.1 200 OK\r\nContent-Length: 11\r\nConnection: Close\r\n\r\nHello World";
-            ssize_t ret = send(this->client_sock,buffer, sizeof(buffer) - 1, 0);
-            std::cerr << ret << " bytes sent" << std::endl;
-            
-            goto close_connection;
-            return ;
-        }
-    return ;
-    close_connection:
-        close(this->client_sock);
-        this->multiplexing.remove(this->client_sock);
-        delete this;
-        return ;
-
-    }
-
-    void Connection::check_potential_body(const map_type & val)
-    {
-        if (val.find("Content-Length") != val.end())
-            this->is_body_expected = true;
-        map_type::const_iterator    tmp = val.find("Transfer-Encoding");
-        if (tmp != val.end())
-        {
-            this->is_body_chunked = !strcasecmp("chunked", tmp->second.c_str());
-            // TODO: if not chuncked -> error not implimented.
-            this->is_body_expected = true;
-        }
-
-    }
-
-    bool Connection::is_crlf(std::string::const_iterator it, std::string::const_iterator end)
-    {
-        if (it != end && *it == '\n')
-            return true;
-        if (it != end && it + 1 != end && *it == '\r' && *(it + 1) == '\n')
-            return true;
-        return false;
-    }
-
-    bool Connection::is_allowed_header_char(char c)
-    {
-        if (isalnum(c) || c == '!' || (c >= '#' && c <= '\'') ||
-            c == '*' || c == '+' || c == '-' || c == '.' || c == '^' ||
-            c == '_' || c == '`' || c == '|' || c == '~')
-            return true;
-        return false;
-    }
-
-    void Connection::check_for_absolute_uri()
-    {
-        std::string &uri = this->req_headers["@path"];
-        if (strncasecmp(uri.c_str(), "http://", 7) != 0)
-            return;
-        std::string::iterator path = std::find(uri.begin() + 7, uri.end(), '/');
-        uri = std::string(path, uri.end());
-    }
-
-    void Connection::parse_request(const std::string &r)
-    {
-        std::string::const_iterator it = find_first_not(r.begin(), r.end(), "\r\n");
-        std::string::const_iterator end = r.end();
-
-        std::string::const_iterator curr_end = find_first_of(it, end, " \t\n\r");
-        // do some checks if the method is valid
-        // methods should be case-sensitive and should be limited to the set of the following:
-        // GET, HEAD, POST, PUT, DELETE
-        // if the method is not valid, return "501 Not Implemented"
-        this->req_headers["@method"] = std::string(it, curr_end);
-        if (we::is_method_supported(this->req_headers["@method"]) == false)
-        {
-            // TODO: 501 Not Implemented
-            std::cerr << "501 Not Implemented" << std::endl;
-            return;
-        }
-
-        it = find_first_not(curr_end, end, " \t\r");
-        curr_end = find_first_of(it, end, " \t\n\r");
-        // do some checks if path is found
-        // path should not be empty or too long (should not be longer than max header size)
-        // if failed, return "414 URI Too Long"
-        std::string &path = this->req_headers["@path"];
-        path = std::string(it, curr_end);
-        if (path.empty() || path.size() > 8192) // TODO: change to max uri size
-        {
-            // TODO: 414 URI Too Long
-            std::cerr << "414 URI Too Long" << std::endl;
-            return;
-        }
-        this->check_for_absolute_uri();
-        
-        if (this->req_headers["@path"][0] != '/')
-        {
-            std::cerr << "400 bad request" << std::endl;
-            return ;
-        }
-
-        it = find_first_not(curr_end, end, " \t\r");
-        curr_end = find_first_of(it, end, " \t\r\n");
-        // do checks if the protocol is supported (HTTP/1.1)
-        // protocol is case-sensitive
-        // if protocol is not supported, respond with a "505 HTTP Version Not Supported"
-        this->req_headers["@protocol"] = std::string(it, curr_end);
-        if (we::is_protocol_supported(this->req_headers["@protocol"]) == false)
-        {
-            // TODO: 505 HTTP Version Not Supported
-            std::cerr << "505 HTTP Version Not Supported" << std::endl;
-            return;
-        }
-        it = find_first_not(curr_end, end, " \t");
-        // check if *it == '\n' ----> is_crlf(it, end)
-        // if not, then return "400 Bad Request"
-        // Example: (GET / HTTP/1.1   abc\n)
-
-        // parse headers
-        while (it != end)
-        {
-            it = find_first_not(it, end, "\r\n");
-            curr_end = it;
-            while (curr_end != end && is_allowed_header_char(*curr_end))
-                ++curr_end;
-            if (*curr_end != ':' && *curr_end != '\n')
+            try
             {
-                it = find_first_of(curr_end, end, "\n");
-                continue;
-            }
-            std::string key = std::string(it, curr_end);
-            it = curr_end + (*curr_end == ':' ? 1 : 0);
-            it = find_first_not(it, end, " \t");
-            std::string::const_iterator last_non_ws = curr_end = it;
-            while (curr_end != end && *curr_end != '\n')
-            {
-                if (*curr_end != ' ' && *curr_end != '\t' && *curr_end != '\r')
-                    last_non_ws = curr_end + 1;
-                ++curr_end;
-            }
-            std::string value = std::string(it, last_non_ws);
-            it = curr_end;
-            this->req_headers[key] = value;
-        }
-    }
-
-    std::string Connection::parse_absolute_path(const std::string &str)
-    {
-        std::string::const_iterator it = str.begin();
-        std::string::const_iterator end = str.end();
-
-        std::vector<std::pair<std::string::const_iterator, std::string::const_iterator> > stack;
-
-        while (it != end)
-        {
-            char c = *it;
-            if (c == '/' && *(it + 1) == '.' && *(it + 2) == '.' && ((*(it + 3) == '/') || (it + 3 == end)))
-            {
-                if (stack.empty() == false)
-                    stack.pop_back();
+                ssize_t recv_ret;
+                if (this->client_remaining_data.size())
+                {
+                    recv_ret = this->client_remaining_data.size();
+                    std::memcpy(this->client_headers_buffer, this->client_remaining_data.c_str(), recv_ret);
+                    this->client_remaining_data.clear();
+                }
                 else
-                    throw std::runtime_error("invalid path");
-                it += 3;
-                continue;
-            }
-            if (c == '/' && *(it + 1) == '.' && ((*(it + 2) == '/') || (it + 2 == end)))
-            {
-                it += 2;
-                continue;
-            }
-            if (c == '/' && *(it + 1) == '/')
-            {
-                ++it;
-                continue;
-            }
+                    recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
 
-            std::string::const_iterator pos = std::find(it, end, '/');
-            if (pos == it)
-                ++it;
-            else
+                if (recv_ret <= 0)
+                    goto close_connection;
+
+                if (this->body_handler->add_data(this->client_headers_buffer, this->client_headers_buffer + recv_ret))
+                {
+                    this->status = Connection::Write;
+                    this->multiplexing.remove(this->client_sock);
+                    this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+                    if (this->client_timeout_event)
+                        this->loop.remove_event(*this->client_timeout_event);
+                    this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+                }
+                else
+                {
+                    if (this->client_timeout_event)
+                        this->loop.remove_event(*this->client_timeout_event);
+                    this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, this->location->client_body_timeout);
+                }
+            }
+            catch(const we::HTTPStatusException& e)
             {
-                stack.push_back(std::make_pair(it, pos));
-                it = pos;
+                this->response_type = Connection::ResponseType_File;
+                this->res_headers.insert(std::make_pair("@response_code", we::to_string(e.statusCode)));
+                this->requested_resource = this->location->get_error_page(e.statusCode);
+
+                this->status = Connection::Write;
+                this->multiplexing.remove(this->client_sock);
+                this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
+
+                this->phase = Phase_End;
+                response_server_handler(this);
+                if (this->client_timeout_event)
+                    this->loop.remove_event(*this->client_timeout_event);
+                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
             }
         }
-
-        if (stack.empty())
-            return "/";
-
-        std::string dir_name;
-        for (size_t i = 0; i < stack.size(); ++i)
+        else if (this->status == Connection::Write)
         {
-            dir_name += "/";
-            dir_name += std::string(stack[i].first, stack[i].second);
+            try
+            {
+                if (this->phase < Phase_End)
+                    process_handlers();
+            } catch (...)
+            {
+                goto close_connection;
+            }
+            if (!this->response_server)
+                goto close_connection;
+
+
+            std::string buffer;
+            bool ended = false;
+            ssize_t &sended_bytes = this->response_server->get_next_data(buffer, ended);
+            if (ended)
+                goto finish_connection;
+
+            if (this->client_timeout_event)
+                this->loop.remove_event(*this->client_timeout_event);
+            this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+
+            if (buffer.size() == 0)
+                return;
+
+            ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
+            std::cerr << "Sended " << ret << " bytes" << std::endl;
+            if (ret <= 0)
+                goto close_connection;
+            sended_bytes = ret;
+
+           
         }
-        return dir_name;
+
+        return;
+finish_connection:
+        this->multiplexing.remove(this->client_sock);
+        if (this->keep_alive == false)
+        {
+close_connection:
+            close(this->client_sock);
+            delete this;
+            return;
+        }
+        this->reset();
+        return;
     }
 
-    bool Connection::parse_path(std::string const &url)
+    void    Connection::reset()
     {
-        const std::string discarded_fragment = std::string(url.begin(), find_first_of(url.begin(), url.end(), "#"));
-        std::string::const_iterator first_qm = find_first_of(discarded_fragment.begin(), discarded_fragment.end(), "?");
-        if (first_qm != discarded_fragment.end())
-            this->req_headers["@query"] = std::string(first_qm + 1, discarded_fragment.end());
-        this->req_headers["@encode_url"] = std::string(discarded_fragment.begin(), first_qm);
-        this->req_headers["@decode_url"] = decode_percent(this->req_headers["@encode_url"]);
-        try
+       
+        this->ranges.clear();
+        this->client_started_header = false;
+        this->is_http_10 = false;
+        this->status = Connection::Read;
+        this->server = NULL;
+        this->location = NULL;
+
+        this->client_content_length = 0;
+        this->keep_alive = true;
+        this->is_body_chunked = false;
+        this->to_chunk = true;
+        
+        this->metadata_set = false;
+        this->content_length = 0;
+        this->mime_type.clear();
+        this->etag.clear();
+
+        if (this->client_headers_buffer)
+            this->client_headers_buffer[0] = 0;
+        if (this->client_body_buffer)
+            delete [] this->client_body_buffer;
+        this->client_body_buffer = NULL;
+        this->client_header_parser.reset();
+        if (this->response_server)
+            delete this->response_server;
+        this->response_server = NULL;
+        this->response_type = Connection::ResponseType_None;
+        this->phase = Phase_Pre_Start;
+
+        this->redirect_count = this->config.max_internal_redirect;
+
+        this->expanded_url.clear();
+        this->requested_resource.clear();
+
+        this->req_headers.clear();
+        this->res_headers.clear();
+
+        this->multiplexing.remove(this->client_sock);
+        this->multiplexing.add(this->client_sock, this, AMultiplexing::Read);
+        
+
+        if (this->client_timeout_event)
+            this->loop.remove_event(*this->client_timeout_event);
+        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->config.client_header_timeout);
+
+        if (body_handler)
         {
-            this->req_headers["@expanded_url"] = this->parse_absolute_path(this->req_headers["@decode_url"]);
+            delete body_handler;
+            body_handler = NULL;
         }
-        catch (std::runtime_error &e)
-        {
-            return false;
-        }
-        return true;
     }
 
-    // This function is called when the request is a GET or HEAD request
-    // It will check if the requested file exists.
-    bool    Connection::process_file_for_response()
+
+    void Connection::process_handlers()
     {
-        // This function should be called after the request is parsed and the server block is initialized
-        this->init_server_block();
-
-        assert(this->server != NULL);
-        // Loop through the list of locations to find the longest match for the requested file
-        for (std::vector<LocationBlock>::const_iterator it = this->server->locations.begin();
-            it != this->server->locations.end(); ++it)
+        while (this->phase < Phase_End)
         {
-            if (check_path_by_location(this->req_headers["@expanded_url"], *it))
+            for (size_t i = 0; i < this->location->handlers[this->phase].size(); i++)
             {
-                if (this->location == NULL ||
-                    this->location->pattern.size() < it->pattern.size())
-                    this->location = &(*it);
+                if (this->location->handlers[this->phase][i](this))
+                    break;
             }
+            this->phase = Phase(int(this->phase) + 1);
         }
-
-        // TODO: if no location block matches, return 404
-        assert(this->location != NULL);
-
-        std::string filepath = get_file_fullpath(this->location->root, this->req_headers["@expanded_url"]);
-        switch (check_file_validity(filepath))
-        {
-        case FileStatus::FILE_OK:
-            break;
-        case FileStatus::FILE_NOT_FOUND:
-            // TODO: Send "404 Not Found"
-        case FileStatus::FILE_NOT_REGULAR:
-            // TODO: Send "404 Not Found"
-            // FIXME: Nginx does not send "404 Not Found" but rather
-            // It follows the symlink and sends the file pointed to
-            // by the symlink if it exists inside the working directory.
-        case FileStatus::FILE_NOT_READABLE:
-            // TODO: Send "404 Not Found"
-        case FileStatus::FILE_IS_DIRECTORY:
-            // TODO: Send "403 Forbidden" if autoindex is disabled
-            // otherwise send "200 OK" and send the directory listing
-        default:
-            return false;
-        }
-
-        this->requested_filepath = filepath;
-        return true;
     }
 
-    // This function is called to find the server block that matches the request
-    void    Connection::init_server_block()
+    void  Connection::timeout()
     {
-        // This function should not be called under any circumstances
-        // if there are no server blocks.
-        assert(this->config.server_blocks.empty() == false);
-
-        Config::server_block_const_iterator sb_it = this->config.server_blocks.find(this->connected_socket);
-        if (sb_it != this->config.server_blocks.end())
-        {
-            for (std::vector<ServerBlock>::const_iterator it = sb_it->second.begin();
-                it != sb_it->second.end(); ++it)
-            {
-                // FIXME: server_name is a vector :(
-                // if (strcasecmp(it->server_name.c_str(), this->req_headers["Host"].c_str()) == 0)
-                //     this->server = &(*it);
-            }
-
-            // If the server block is not found, the default server block is used instead
-            if (this->server == NULL)
-                this->server = &(sb_it->second.front());
-        }
-        // No server block matches the request socket. This should not happen under any circumstances.
-        else
-            throw std::runtime_error("500 Internal Server Error");
+        this->multiplexing.remove(this->client_sock);
+        close(this->client_sock);
+        delete this;
+        return;
     }
 }
+
+
