@@ -388,7 +388,7 @@ namespace we
             delete this->connection;
     }
 
-    ResponseServerCGI::ResponseServerCGI(Connection *connection): ResponseServer(connection)
+    ResponseServerCGI::ResponseServerCGI(Connection *connection): ResponseServer(connection), parser(&cgi_headers, -1, HeaderParser<Connection::RespHeaderMap>::State_Header, true)
     {
         this->headers_ended = false;
         int input_fd = 0;
@@ -519,44 +519,11 @@ namespace we
         }
         if (!headers_ended)
         {
-            header_buffer.append(_buffer, ret);
-            size_t i = 0;
-            if (header_buffer.size() >= 2)
-                for (; i < header_buffer.size() - 1; i++)
-                {
-                    if ((header_buffer[i] == '\r' && header_buffer[i + 1] == '\n')) 
-                    {
-                        if ((header_buffer[i + 2] == '\r' && header_buffer[i + 3] == '\n') || header_buffer[i + 2] == '\n')
-                        {
-                            headers_ended = true;
-                            break;
-                        }
-                    }
-                    if (header_buffer[i] == '\n')
-                    {
-                        if ((header_buffer[i + 1] == '\r' && header_buffer[i + 2] == '\n') || header_buffer[i + 1] == '\n')
-                        {
-                            headers_ended = true;
-                            break;
-                        }
-                    }
-                }
+            char *tmp_buff = _buffer;
+            headers_ended = parser.append(tmp_buff, tmp_buff + ret);
             if (headers_ended)
             {
-                std::cerr << header_buffer << std::endl;
-                std::string::iterator it = header_buffer.begin() + i;
-                int newline = 0;
-                while (newline!=2)
-                    newline += *it++ == '\n';
-                std::string s(it, header_buffer.end());
-                header_buffer.erase(it, header_buffer.end());
-
-                Connection::RespHeaderMap cgi_headers;
-                HeaderParser<Connection::RespHeaderMap> parser(&cgi_headers, -1, HeaderParser<Connection::RespHeaderMap>::State_Header, true);
-
-                std::string::iterator it2 = header_buffer.begin();
-                parser.append(it2, header_buffer.end());
-
+                std::string s(tmp_buff, _buffer + ret);
                 if (cgi_headers.find("Status") != cgi_headers.end())
                 {
                     connection->res_headers.erase("@response_code");
@@ -567,7 +534,10 @@ namespace we
                 connection->res_headers.insert(cgi_headers.begin(), cgi_headers.end());
                 header_buffer = make_response_header(connection->res_headers);
                 if (s.size())
+                {
+                    std::cerr << "CGI headers: " << s << std::endl;
                     transform_data(s);
+                }
                 internal_buffer.append(header_buffer);
                 internal_buffer.append(s);
             }
