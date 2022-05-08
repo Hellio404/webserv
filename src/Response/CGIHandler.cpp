@@ -42,7 +42,6 @@ namespace we
 
             con->response_type = Connection::ResponseType_CGI;
             con->res_headers.insert(std::make_pair("@response_code", "200"));
-            con->keep_alive = false;
         }
 
         return 1;

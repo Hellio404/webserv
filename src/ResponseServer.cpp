@@ -66,7 +66,10 @@ namespace we
     {
         std::string header = "HTTP/1.1 ";
 
-        header += this->str_status_code + " " + we::get_status_string(this->status_code);
+        if (headers.find("@CGI_Status") != headers.end())
+            header += headers.find("@CGI_Status")->second;
+        else
+            header += this->str_status_code + " " + we::get_status_string(this->status_code);
         header += "\r\n";
         for (HeaderMap::const_iterator it = headers.begin(); it != headers.end(); ++it)
         {
@@ -88,6 +91,7 @@ namespace we
     ResponseServerFile::ResponseServerFile(Connection *con) : ResponseServer(con)
     {
         this->file.open(con->requested_resource.c_str(), std::ifstream::in | std::ifstream::binary);
+        con->res_headers.erase("Transfer-Encoding");
         con->to_chunk = false;
         if (!this->file.is_open() && is_bodiless_response(this->status_code))
         {
@@ -356,6 +360,34 @@ namespace we
     // END OF ResponseServerFileSingleRange
 
     // ResponseServerCGI
+
+    static void    timeout_event(EventData data)
+    {
+        ResponseServerCGI *conn = reinterpret_cast<ResponseServerCGI *>(data.pointer);
+        conn->timeout();
+    }
+    
+    void ResponseServerCGI::timeout()
+    {
+        this->event = NULL;
+        if (!this->headers_ended)
+        {
+            Connection *con = this->connection;
+            delete this;
+            con->response_type = Connection::ResponseType_File;
+            con->res_headers.erase("@response_code");
+            con->res_headers.insert(std::make_pair("@response_code", "502"));
+            con->requested_resource = con->location->get_error_page(502);
+            con->status = Connection::Write;
+            con->phase = Phase_End;
+            response_server_handler(con);
+            con->set_timeout(con->server->server_send_timeout);
+            return ;
+        }
+        else
+            delete this->connection;
+    }
+
     ResponseServerCGI::ResponseServerCGI(Connection *connection): ResponseServer(connection)
     {
         this->headers_ended = false;
@@ -395,56 +427,94 @@ namespace we
             exit(69);
         } else
         {
-            
             if (input_fd)
                 close(input_fd);
             close(fds[1]);
             connection->multiplexing.add(fds[0], this, we::AMultiplexing::Read);
+            event_data.pointer = this;
+            this->event = &connection->loop.add_event(timeout_event, event_data, 30000);
         }
         if (this->connection->to_chunk)
             this->connection->res_headers.insert(std::make_pair("Transfer-Encoding", "chunked"));
-        header_buffer = make_response_header(connection->res_headers);
-        header_buffer.erase(header_buffer.end() - 2, header_buffer.end());
+        // header_buffer = make_response_header(connection->res_headers);
+        // header_buffer.erase(header_buffer.end() - 2, header_buffer.end());
+        header_buffer = "";
     }
 
     ResponseServerCGI::~ResponseServerCGI()
     {
-        std::cerr << "CGI ended" << std::endl;
-        // (*(int *)0) = 0;
         if (this->pid)
             kill(this->pid, SIGKILL);
+        waitpid(this->pid, NULL, 0);
         this->connection->multiplexing.remove(fds[0]);
         close(fds[0]);
+        if (this->event)
+            this->connection->loop.remove_event(*this->event);
     }
-
 
     void    ResponseServerCGI::load_next_data(std::string & str)
     {
         str = "";
     }
 
+    bool   ResponseServerCGI::check_bad_exit()
+    {
+        int status;
+        int ret = waitpid(this->pid, &status, WNOHANG);
+        if (ret < 0 || (ret == pid && WEXITSTATUS(status) != 0 ))
+        {
+            Connection *con = this->connection;
+            delete this;
+            con->response_type = Connection::ResponseType_File;
+            con->res_headers.erase("@response_code");
+            con->res_headers.insert(std::make_pair("@response_code", "502"));
+            con->requested_resource = con->location->get_error_page(502);
+            con->status = Connection::Write;
+            con->phase = Phase_End;
+            response_server_handler(con);
+            con->set_timeout(con->server->server_send_timeout);
+            return true;
+        }
+        return false;
+    }
+
     void    ResponseServerCGI::handle_connection()
     {
-        int ret;
-
+        this->connection->loop.remove_event(*this->event);
+        this->event = &connection->loop.add_event(timeout_event, event_data, 30000);
+        if (!headers_ended && check_bad_exit())
+            return;
+        //     return delete connection; // TODO: send an error message if no data was sent
         if (size_t(this->buffer_size) <= internal_buffer.size())
             return ;
+        int ret;
         ret = read(fds[0], _buffer, buffer_size - internal_buffer.size());
         if (ret < 0)
         {
-            std::cerr <<"CGI READ: "<< strerror(errno) << std::endl;
-            return delete connection; // TODO: send an error message if no data was sent
+            this->connection->status = Connection::Close;
+            return;
         }
         if (ret == 0) // EOF
         {
-            std::cerr << "EOF" << std::endl;
+            this->connection->loop.remove_event(*this->event);
+            this->event = NULL;
+            kill(this->pid, SIGKILL);
             if (!ended && this->connection->to_chunk && headers_ended)
                 internal_buffer.append("0\r\n\r\n");
+            else if (!ended && check_bad_exit())
+                return;
             else if (!ended)
+            {
                 internal_buffer.append(header_buffer);
+                if (internal_buffer[internal_buffer.size() - 1] != '\n')
+                    internal_buffer.append("\r\n");
+                internal_buffer.append("\r\n");
+                if (this->connection->to_chunk)
+                    internal_buffer.append("0\r\n\r\n");
+            }
             ended = true;
             this->connection->multiplexing.remove(fds[0]);
-            close(fds[0]);
+            // close(fds[0]);
             return ;
         }
         if (!headers_ended)
@@ -473,13 +543,31 @@ namespace we
                 }
             if (headers_ended)
             {
+                std::cerr << header_buffer << std::endl;
                 std::string::iterator it = header_buffer.begin() + i;
                 int newline = 0;
                 while (newline!=2)
                     newline += *it++ == '\n';
                 std::string s(it, header_buffer.end());
                 header_buffer.erase(it, header_buffer.end());
-                transform_data(s);
+
+                Connection::RespHeaderMap cgi_headers;
+                HeaderParser<Connection::RespHeaderMap> parser(&cgi_headers, -1, HeaderParser<Connection::RespHeaderMap>::State_Header, true);
+
+                std::string::iterator it2 = header_buffer.begin();
+                parser.append(it2, header_buffer.end());
+
+                if (cgi_headers.find("Status") != cgi_headers.end())
+                {
+                    connection->res_headers.erase("@response_code");
+                    connection->res_headers.insert(std::make_pair("@CGI_Status", cgi_headers.find("Status")->second));
+                    cgi_headers.erase("Status");
+                }
+
+                connection->res_headers.insert(cgi_headers.begin(), cgi_headers.end());
+                header_buffer = make_response_header(connection->res_headers);
+                if (s.size())
+                    transform_data(s);
                 internal_buffer.append(header_buffer);
                 internal_buffer.append(s);
             }
@@ -519,7 +607,7 @@ namespace we
         if (this->connection->req_headers.find("Content-Length") != this->connection->req_headers.end())
             env_v.push_back("CONTENT_LENGTH=" + this->connection->req_headers["Content-Length"]);
         
-        we::HeaderParser::Headers_t::const_iterator it = this->connection->req_headers.begin();
+        Connection::ReqHeaderMap::const_iterator it = this->connection->req_headers.begin();
         for (; it != this->connection->req_headers.end(); ++it)
         {
             if (it->first[0] == '@')
