@@ -11,6 +11,7 @@
 #include <map>
 #include "Connection.hpp"
 #include "ConnectionBase.hpp"
+#include "HeaderParser.hpp"
 
 namespace we
 {
@@ -109,13 +110,17 @@ namespace we
 
     class ResponseServerCGI : public ResponseServer, public BaseConnection
     {
+        typedef std::multimap<std::string, std::string, LessCaseInsensitive>   HeaderMap;
         int             fds[2];
         pid_t           pid;
         bool            headers_ended;
         EventData       event_data;
-        const Event     *event;
+        HeaderMap       cgi_headers;
+        HeaderParser<HeaderMap> parser;
         char            **env;
+        const Event     *event;
         std::string     header_buffer;
+
 
         bool set_environment();
         bool check_bad_exit();
