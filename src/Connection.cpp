@@ -88,7 +88,7 @@ namespace we
             this->client_content_length = atoll(this->req_headers["Content-Length"].c_str());
             if (this->client_content_length < 0)
                 throw we::HTTPStatusException(400, "");
-            if (this->client_content_length > this->location->client_max_body_size)
+            if (size_t(this->client_content_length) > this->location->client_max_body_size)
                 throw we::HTTPStatusException(413, "");
         }
     }

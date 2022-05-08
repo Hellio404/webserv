@@ -28,7 +28,7 @@ int main(int ac, char **av)
 
         multiplexer = we::get_instance(config.multiplex_type);
         if (multiplexer == NULL)
-            throw std::runtime_error("Unknown multiplexer type: " + config.multiplex_type);
+            throw std::runtime_error("Could not create multiplexer");
 
         we::Config::server_block_const_iterator it = config.server_blocks.begin();
         while (it != config.server_blocks.end())

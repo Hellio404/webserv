@@ -34,7 +34,7 @@ namespace we
     {
         this->buffer_offset += this->last_read_bytes;
         this->last_read_bytes = 0;
-        if (this->buffer_offset >= this->internal_buffer.size())
+        if (size_t(this->buffer_offset) >= this->internal_buffer.size())
         {
             if (this->ended == true)
             {
@@ -244,7 +244,7 @@ namespace we
         _buffer[read_bytes] = '\0';
         buffer.assign(_buffer, read_bytes);
         this->offset += read_bytes;
-        if (this->offset == this->response_buffer.size())
+        if (size_t(this->offset) == this->response_buffer.size())
             this->ended = true;
         return this->transform_data(buffer);
     }
@@ -426,10 +426,8 @@ namespace we
     void    ResponseServerCGI::handle_connection()
     {
         int ret;
-        // if ((ret = waitpid(pid, NULL, WNOHANG)) < 0)
-        //     return delete connection; // TODO: send an error message if no data was sent
-        std::cerr << buffer_size << std::endl;
-        if (buffer_size <= internal_buffer.size())
+
+        if (size_t(this->buffer_size) <= internal_buffer.size())
             return ;
         ret = read(fds[0], _buffer, buffer_size - internal_buffer.size());
         if (ret < 0)

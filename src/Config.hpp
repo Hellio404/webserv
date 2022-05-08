@@ -77,8 +77,8 @@ namespace we
         ft::Regex                                           *regex;
         long long                                           client_body_timeout;
         bool                                                client_body_in_file;
-        long long                                           client_body_buffer_size;
-        long long                                           client_max_body_size;
+        size_t                                              client_body_buffer_size;
+        size_t                                              client_max_body_size;
 
         std::string                                         cgi;
 

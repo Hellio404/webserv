@@ -111,7 +111,7 @@ namespace we
         this->buffer.clear();
     }
 
-    HeaderParser::HeaderParser(Headers_t *_h, long long _m, State _s) : headers(_h), max_header_size(_m), m_state(_s)
+    HeaderParser::HeaderParser(Headers_t *_h, long long _m, State _s): m_state(_s), max_header_size(_m), headers(_h)
     {
         req_size = 0;
         end = false;
@@ -126,7 +126,6 @@ namespace we
 
         while (it != end)
         {
-            char c = *it;
             if (std::equal(it, it + 3, "/..") && (it[3] == '/' || it + 3 == end))
             {
                 if (stack.empty() == false)

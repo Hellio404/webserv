@@ -40,8 +40,10 @@ namespace we
 
     void Logger::error(Connection *connection, const std::string &message)
     {
-        if (this->isErrorLogOpen)
-            this->errorLog << message << std::endl;
+        if (this->isErrorLogOpen == false)
+            return;
+
+        this->errorLog << message << " - - [" << connection->client_addr_str << "]" << std::endl;
     }
 
     void Logger::setAccessLog(std::string const &path)

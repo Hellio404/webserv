@@ -34,7 +34,7 @@ namespace we
         if (stat(con->requested_resource.c_str(), &st) == -1 || !S_ISDIR(st.st_mode))
             return 0;
 
-        for (int i = 0; i < location->index.size(); ++i)
+        for (size_t i = 0; i < location->index.size(); ++i)
         {
             std::string index_path = con->requested_resource + "/" + location->index[i];
             if (stat(index_path.c_str(), &st) != -1 && !S_ISDIR(st.st_mode))

@@ -28,7 +28,7 @@ namespace we
         Headers_t *headers;
         bool end;
         std::string buffer;
-        size_t req_size;
+        long long req_size;
 
         HeaderParser();
 

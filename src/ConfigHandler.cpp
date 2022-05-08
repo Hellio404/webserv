@@ -102,18 +102,6 @@ namespace we
         *reinterpret_cast<long long *>((char *)block + offset) = ret;
     }
 
-    // data.args[0] == 1024 | -2048 | 4096 | -8192 | -16384 | 32768 | 65536 (long long)
-    static void set_number_directive(void *block, directive_data const &data, size_t offset)
-    {
-        *reinterpret_cast<long long *>((char *)block + offset) = atoi(data.args[0], data);
-    }
-
-    // data.args[0] == 1024 | 2048 | 4096 | 8192 | 16384 | 32768 | 65536 (long long) positive
-    static void set_unumber_directive(void *block, directive_data const &data, size_t offset)
-    {
-        *reinterpret_cast<long long *>((char *)block + offset) = atou(data.args[0], data);
-    }
-
     // data.args[0] == on | off
     static void set_boolean_directive(void *block, directive_data const &data, size_t offset)
     {
@@ -289,7 +277,7 @@ namespace we
         if (data.args.size() != 1)
             throw std::runtime_error(error_to_print("invalid number of arguments", data));
 
-        for (int i = 1; i < sizeof(mapped_multiplex) / sizeof(mapped_multiplex[0]); i++)
+        for (size_t i = 1; i < sizeof(mapped_multiplex) / sizeof(mapped_multiplex[0]); i++)
         {
             if (data.args[0] == mapped_multiplex[i])
             {
@@ -377,7 +365,7 @@ namespace we
             { "client_header_buffer_size", &we::set_size_directive, OFFSET_OF(Config, client_header_buffer_size) },
         };
 
-        for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
+        for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
         {
             directive_data *data = get_directive_data(dispatcher[i].name, root, NULL, NULL);
 
@@ -407,7 +395,7 @@ namespace we
             { "lingering_close_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, lingering_close_timeout) },
         };
 
-        for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
+        for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
         {
             directive_data *data = get_directive_data(dispatcher[i].name, root, server, NULL);
 
@@ -463,7 +451,7 @@ namespace we
             { "return", NULL , 0 },
         };
 
-        for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
+        for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
         {
             std::vector<directive_data> data = get_all_directive_data(dispatcher[i].name, root, server, location);
 

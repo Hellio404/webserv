@@ -90,7 +90,7 @@ namespace we
 
     std::string decode_percent(const std::string &str)
     {
-        int i = 0;
+        size_t i = 0;
         std::string ret;
         while (i < str.length())
         {
@@ -111,7 +111,7 @@ namespace we
         const char *supported_protocols[] = {
             "HTTP/1.1"};
 
-        for (int i = 0; i < sizeof(supported_protocols) / sizeof(supported_protocols[0]); ++i)
+        for (size_t i = 0; i < sizeof(supported_protocols) / sizeof(supported_protocols[0]); ++i)
         {
             if (protocol == supported_protocols[i])
                 return true;
@@ -125,7 +125,7 @@ namespace we
         const char *supported_methods[] = {
             "GET", "POST", "HEAD", "PUT", "DELETE"};
 
-        for (int i = 0; i < sizeof(supported_methods) / sizeof(supported_methods[0]); ++i)
+        for (size_t i = 0; i < sizeof(supported_methods) / sizeof(supported_methods[0]); ++i)
         {
             if (method == supported_methods[i])
                 return true;
