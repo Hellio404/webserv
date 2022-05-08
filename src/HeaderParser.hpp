@@ -199,14 +199,12 @@ namespace we
             this->buffer.clear();
         }
 
-        HeaderParser(Headers_t *_h, long long _m, State _s = State_Start, bool skip_checks = false) : headers(_h), max_header_size(_m), m_state(_s)
+        HeaderParser(Headers_t *_h, long long _m, State _s = State_Start, bool skip_checks = false) : m_state(_s), max_header_size(_m), headers(_h)
         {
             this->skip_checks = skip_checks;
             req_size = 0;
             end = false;
         }
-
-        
 
         void parse_path(std::string const &url)
         {
@@ -224,7 +222,7 @@ namespace we
             insert_or_assign(_headers, "@expanded_url", this->dedote_path(_headers.find("@decode_url")->second));
         }
 
-        private:
+    private:
         std::string dedote_path(const std::string &str)
         {
             std::string::const_iterator it = str.begin();
@@ -234,7 +232,6 @@ namespace we
 
             while (it != end)
             {
-                char c = *it;
                 if (std::equal(it, it + 3, "/..") && (it[3] == '/' || it + 3 == end))
                 {
                     if (stack.empty() == false)
