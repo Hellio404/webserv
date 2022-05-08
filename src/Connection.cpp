@@ -28,6 +28,8 @@ namespace we
     }
 
     unsigned long long Connection::connection_count = 0;
+    unsigned long long Connection::connection_total = 0;
+    
     Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, 5000)
     {
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
@@ -47,6 +49,7 @@ namespace we
 
         this->client_headers_buffer = new char[this->config.client_max_header_size];
         this->connection_count++;
+        this->connection_total++;
     }
 
     Connection::~Connection()
@@ -67,6 +70,11 @@ namespace we
     unsigned long long Connection::get_connection_count()
     {
         return Connection::connection_count;
+    }
+
+    unsigned long long Connection::get_connection_total()
+    {
+        return Connection::connection_total;
     }
 
     void Connection::print_headers()
@@ -238,7 +246,6 @@ namespace we
             ssize_t &sended_bytes = this->response_server->get_next_data(buffer, ended);
             if (ended)
                 goto finish_connection;
-
 
             if (buffer.size() == 0)
                 return;

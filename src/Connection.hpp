@@ -35,7 +35,12 @@ namespace we
         typedef unsigned long long ull;
 
         static ull connection_count;
+        static ull connection_total;
     public:
+
+        typedef std::map<std::string, std::string, LessCaseInsensitive>             ReqHeaderMap;
+        typedef std::multimap<std::string, std::string, LessCaseInsensitive>        RespHeaderMap;
+
         enum Status
         {
             Read,
@@ -96,7 +101,7 @@ namespace we
 
         char                                                                *client_headers_buffer;
         char                                                                *client_body_buffer;
-        HeaderParser                                                        client_header_parser;
+        HeaderParser<ReqHeaderMap>                                          client_header_parser;
         ResponseServer                                                      *response_server;
         ResponseType                                                        response_type;
         Phase                                                               phase;
@@ -119,9 +124,9 @@ namespace we
         void        set_body_timeout(long long);
         void        timeout();
         static ull  get_connection_count();
-
+        static ull  get_connection_total();
+    
     private:
-        typedef std::map<std::string, std::string, LessCaseInsensitive>     map_type;
 
     private:
         void        check_potential_body();
