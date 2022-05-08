@@ -10,9 +10,7 @@ namespace we
 
         // Move on to the next handler if the location is not a cgi script
         if (con->location->cgi.empty())
-        {
             return 0;
-        }
 
         if (con->response_type != Connection::ResponseType_None)
             return 1;
@@ -28,7 +26,6 @@ namespace we
         int fd = open(requested_resource.c_str(), O_RDONLY);
         if (fd == -1 && (S_ISDIR(st.st_mode) || errno == EACCES))
         {
-
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "403"));
             con->requested_resource = con->location->get_error_page(403);
@@ -44,11 +41,7 @@ namespace we
             close(fd);
 
             con->response_type = Connection::ResponseType_CGI;
-
             con->res_headers.insert(std::make_pair("@response_code", "200"));
-            con->res_headers.insert(std::make_pair("@handler", "cgi_handler"));
-
-            // con->keep_alive = false;
         }
 
         return 1;

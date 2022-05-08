@@ -88,7 +88,7 @@ namespace we
         std::vector<struct pollfd>                      _fd_list;
         // next fd preserves the next fd to the already ready fd /
         // that is either listen or read
-        int                                             _next_fd;
+        size_t                                          _next_fd;
     public:
         MultiplexingPoll();
         ~MultiplexingPoll();

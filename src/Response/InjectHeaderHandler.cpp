@@ -1,11 +1,12 @@
 #include "Handler.hpp"
 #include "Connection.hpp"
 #include "Logger.hpp"
+
 namespace we
 {
-    int    inject_header_handler(Connection *con)
+    int inject_header_handler(Connection *con)
     {
-        std::map<std::string,std::string>::const_iterator it = con->location->added_headers.begin();
+        std::map<std::string, std::string>::const_iterator it = con->location->added_headers.begin();
 
         for (; it != con->location->added_headers.end(); ++it)
         {

@@ -1,27 +1,26 @@
 #include "Handler.hpp"
 #include "Config.hpp"
 #include "Connection.hpp"
+
 namespace we
 {
     int redirect_handler(Connection *con)
     {
         std::string &requested_resource = con->requested_resource;
+
         if (con->location->is_redirection == false)
         {
             struct stat st;
-            if (requested_resource.size() && requested_resource[requested_resource.size() - 1] != '/' &&
-                stat(requested_resource.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+            if (requested_resource.size() && requested_resource[requested_resource.size() - 1] != '/' && stat(requested_resource.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
             {
                 std::string location = "http://" + con->req_headers["Host"] + con->expanded_url + "/";
 
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("Location", location));
                 con->res_headers.insert(std::make_pair("@response_code", "301"));
-                con->res_headers.insert(std::make_pair("@handler", "redirect"));
-
+                con->requested_resource = con->location->get_error_page(301);
                 con->keep_alive = false;
 
-                con->requested_resource = "";
                 return 1;
             }
 
@@ -40,11 +39,9 @@ namespace we
         con->response_type = Connection::ResponseType_File;
         con->res_headers.insert(std::make_pair("Location", location));
         con->res_headers.insert(std::make_pair("@response_code", we::to_string(con->location->return_code)));
-        con->res_headers.insert(std::make_pair("@handler", "redirect"));
-
+        con->requested_resource = con->location->get_error_page(con->location->return_code);
         con->keep_alive = false;
 
-        con->requested_resource = "";
         return 1;
     }
 }

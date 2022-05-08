@@ -1,6 +1,7 @@
 #include "Handler.hpp"
 #include "Connection.hpp"
 #include "Logger.hpp"
+
 namespace we
 {
     int response_server_handler(Connection *con)
@@ -27,7 +28,8 @@ namespace we
 
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "500"));
-            con->requested_resource = "";
+            con->requested_resource = con->location->get_error_page(500);
+
             con->response_server = new we::ResponseServerFile(con);
         }
 

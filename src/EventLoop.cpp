@@ -31,7 +31,7 @@ const Event& EventLoop::add_event(void (*handler) (EventData), EventData data, s
     if (periodic)
     {
         const struct timeval now = get_current_time();
-        long long ms_time = (activation_time.tv_sec - now.tv_sec) * 1000 + (activation_time.tv_usec - now.tv_usec) / 1000;
+        ms_time = (activation_time.tv_sec - now.tv_sec) * 1000 + (activation_time.tv_usec - now.tv_usec) / 1000;
     }
     assert(ms_time >= 0);
     Event event(handler, data, activation_time, ms_time, periodic);
@@ -116,7 +116,7 @@ void            EventLoop::remove_event(Event const &event)
 }
 
 Event::Event(void (*handler) (EventData), EventData data, struct timeval activation_time, unsigned long long ms_time, bool periodic):
-    handler(handler), data(data), activation_time(activation_time), ms_time(ms_time), periodic(periodic), id(id_generator++)
+    handler(handler), data(data), ms_time(ms_time), activation_time(activation_time), periodic(periodic), id(id_generator++)
 {
 }
 

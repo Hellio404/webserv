@@ -41,10 +41,7 @@ namespace we
             closedir(dir);
 
             con->response_type = Connection::ResponseType_Directory;
-
             con->res_headers.insert(std::make_pair("@response_code", "200"));
-            con->res_headers.insert(std::make_pair("@handler", "autoindex_handler"));
-
             con->keep_alive = false;
         }
 

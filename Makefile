@@ -1,6 +1,6 @@
 NAME		=	webserv
 CC			=	clang++
-FLAGS		=	-I. -I./src -I./$(REGEX_PATH)includes -fsanitize=address -g#-Wall -Wextra -Werror
+FLAGS		=	-I. -I./src -I./$(REGEX_PATH)includes -Wall -Wextra -Werror -std=c++98
 HEADS		=	src/Chunker.hpp src/Config.hpp src/Connection.hpp src/Date.hpp src/EventLoop.hpp src/FileUtility.hpp \
 				src/Multiplexing.hpp src/Parser.hpp src/Utils.hpp src/HeaderParser.hpp src/Response/Handler.hpp src/Logger.hpp
 SRCS		=	src/Chunker.cpp src/Config.cpp src/ConfigHandler.cpp src/Connection.cpp src/Date.cpp src/EventLoop.cpp \
@@ -18,11 +18,11 @@ all: $(NAME)
 $(REGEX):
 	make -C $(REGEX_PATH)
 
-$(NAME): $(REGEX)  $(OBJS)
-	$(CC) $(FLAGS) $(FLAGS_DEBUG) -o $(NAME) $(OBJS)   -L$(REGEX_PATH) -lregex
+$(NAME): $(REGEX) $(OBJS)
+	$(CC) $(FLAGS) -o $(NAME) $(OBJS) -L$(REGEX_PATH) -lregex
 
 %.o: %.cpp $(HEADS)
-	$(CC) $(FLAGS) $(FLAGS_DEBUG) -c -o $@ $<
+	$(CC) $(FLAGS) -c -o $@ $<
 
 clean:
 	make -C $(REGEX_PATH) clean

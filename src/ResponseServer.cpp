@@ -34,7 +34,7 @@ namespace we
     {
         this->buffer_offset += this->last_read_bytes;
         this->last_read_bytes = 0;
-        if (this->buffer_offset >= this->internal_buffer.size())
+        if (size_t(this->buffer_offset) >= this->internal_buffer.size())
         {
             if (this->ended == true)
             {
@@ -248,7 +248,7 @@ namespace we
         _buffer[read_bytes] = '\0';
         buffer.assign(_buffer, read_bytes);
         this->offset += read_bytes;
-        if (this->offset == this->response_buffer.size())
+        if (size_t(this->offset) == this->response_buffer.size())
             this->ended = true;
         return this->transform_data(buffer);
     }
@@ -460,8 +460,7 @@ namespace we
     bool   ResponseServerCGI::check_bad_exit()
     {
         int status;
-        int ret;
-        ret = waitpid(this->pid, &status, WNOHANG);
+        int ret = waitpid(this->pid, &status, WNOHANG);
         if (ret < 0 || (ret == pid && WEXITSTATUS(status) != 0 ))
         {
             Connection *con = this->connection;
@@ -479,8 +478,6 @@ namespace we
         return false;
     }
 
-
-    
     void    ResponseServerCGI::handle_connection()
     {
         this->connection->loop.remove_event(*this->event);
@@ -488,7 +485,7 @@ namespace we
         if (!headers_ended && check_bad_exit())
             return;
         //     return delete connection; // TODO: send an error message if no data was sent
-        if (buffer_size <= internal_buffer.size())
+        if (size_t(this->buffer_size) <= internal_buffer.size())
             return ;
         int ret;
         ret = read(fds[0], _buffer, buffer_size - internal_buffer.size());

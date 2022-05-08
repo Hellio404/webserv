@@ -80,11 +80,9 @@ namespace we
         typedef std::pair<unsigned long long, unsigned long long>    Range;
 
         std::ifstream                               file;
-        long long                                   offset;
         std::vector<std::string>::const_iterator    current_boundry;
         std::vector<Range>::iterator                current_range;
         std::vector<std::string>                    boundries;
-        size_t                                      boundry;
         bool                                        add_header;
 
     public:

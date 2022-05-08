@@ -9,9 +9,6 @@
 #define IS_EOL(data) ((data[0] == '\r') && (data[1] == '\n') || (data[0] == '\n'))
 namespace we
 {
-    
-
-    
     template <typename HeaderType>
     class HeaderParser
     {
@@ -31,7 +28,7 @@ namespace we
         Headers_t *headers;
         bool end;
         std::string buffer;
-        size_t req_size;
+        long long req_size;
         bool skip_checks;
 
         HeaderParser();

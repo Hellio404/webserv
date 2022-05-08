@@ -33,7 +33,7 @@ namespace we
                 throw we::HTTPStatusException(413, "Request Entity Too Large");
             return ret;
         }
-        if ((end - start) + filesize + buffer_data.size() >= con->client_content_length)
+        if ((end - start) + filesize + buffer_data.size() >= size_t(con->client_content_length))
         {
             buffer_data.append(start, end);
             tmpfile.write(buffer_data.c_str(), con->client_content_length - filesize);
@@ -50,7 +50,7 @@ namespace we
             tmpfile.write(buffer_data.c_str(), buffer_data.size());
             filesize += buffer_data.size();
             buffer_data.clear();
-            if (end - start > buffer_size)
+            if (size_t(end - start) > this->buffer_size)
             {
                 tmpfile.write(start, end - start);
                 filesize += end - start;
