@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Utils.hpp"
-
+#include <signal.h>
 #include <sys/stat.h>
 #include <dirent.h>
 #include <iostream>
@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <map>
 #include "Connection.hpp"
+#include "ConnectionBase.hpp"
 
 namespace we
 {
@@ -104,5 +105,24 @@ namespace we
         ResponseServerFileSingleRange(Connection *);
         void    load_next_data(std::string &);
         ~ResponseServerFileSingleRange();
+    };
+
+    //................................................\\/
+
+    class ResponseServerCGI : public ResponseServer, public BaseConnection
+    {
+        int     fds[2];
+        pid_t   pid;
+        bool    headers_ended;
+
+        char    **env;
+        std::string header_buffer;
+
+        bool set_environment();
+    public:
+        ResponseServerCGI(Connection *);
+        ~ResponseServerCGI();
+        void    load_next_data(std::string &);
+        void    handle_connection();
     };
 }

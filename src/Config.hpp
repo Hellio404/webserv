@@ -80,6 +80,8 @@ namespace we
         long long                                           client_body_buffer_size;
         long long                                           client_max_body_size;
 
+        std::string                                         cgi;
+
         bool                                                is_redirection;
         std::string                                         redirect_url;
         int                                                 return_code;
@@ -94,6 +96,7 @@ namespace we
         std::string                                         upload_dir;
         AllowedMethods                                      allowed_methods;
         std::vector<std::vector<int (*)(Connection *)> >    handlers;
+        std::map<std::string, std::string>                  added_headers;
 
     public:
         LocationBlock();
@@ -108,6 +111,8 @@ namespace we
     {
     public:
         std::string                             listen_addr;
+        std::string                             listen_port;
+
         int                                     listen_socket;
         std::vector<std::string>                server_names;
 

@@ -6,7 +6,7 @@ namespace we
     {
     }
 
-    Connection *AMultiplexing::get_connection(int fd)
+    BaseConnection *AMultiplexing::get_connection(int fd)
     {
         return this->_fds_data[fd];
     }
@@ -27,7 +27,7 @@ namespace we
         }
     }
 
-    void MultiplexingKqueue::add(int fd, Connection* data, WatchType type)
+    void MultiplexingKqueue::add(int fd, BaseConnection* data, WatchType type)
     {
         assert(type != None && type != Error);
 
@@ -100,7 +100,7 @@ namespace we
     {
     }
 
-    void MultiplexingPoll::add(int fd, Connection* data, WatchType type)
+    void MultiplexingPoll::add(int fd, BaseConnection* data, WatchType type)
     {
         assert(type != None && type != Error);
 
@@ -182,7 +182,7 @@ namespace we
     {
     }
 
-    void MultiplexingSelect::add(int fd, Connection* data, WatchType type)
+    void MultiplexingSelect::add(int fd, BaseConnection* data, WatchType type)
     {
         // TODO: check if there is enough room for the new fd
         // TODO: check if fd < 0

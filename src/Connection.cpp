@@ -3,6 +3,8 @@
 namespace we
 {
 
+    BaseConnection::~BaseConnection() {}
+
     static void    timeout_event(EventData data)
     {
         Connection *conn = reinterpret_cast<Connection *>(data.pointer);
@@ -40,6 +42,7 @@ namespace we
         this->client_body_buffer = NULL;
         this->response_server = NULL;
         this->body_handler = NULL;
+        this->client_timeout_event = NULL;
         this->reset();
 
         this->client_headers_buffer = new char[this->config.client_max_header_size];
@@ -75,9 +78,9 @@ namespace we
             this->keep_alive = false;
         }
 
-        if (this->is_http_10 == false && strcasecmp(this->req_headers["Connection"].c_str(), "close") == 0)
+        if (this->is_http_10 == false && this->req_headers.find("Connection") != this->req_headers.end() && strcasecmp(this->req_headers["Connection"].c_str(), "close") == 0)
             this->keep_alive = 0;
-        if (this->is_http_10 == false && strcasecmp(this->req_headers["Transfer-Encoding"].c_str(), "chunked") == 0)
+        if (this->is_http_10 == false && this->req_headers.find("Transfer-Encoding") != this->req_headers.end() && strcasecmp(this->req_headers["Transfer-Encoding"].c_str(), "chunked") == 0)
             this->is_body_chunked = 1;
 
         if (this->req_headers.find("Content-Length") != this->req_headers.end())
@@ -241,15 +244,21 @@ namespace we
             ssize_t &sended_bytes = this->response_server->get_next_data(buffer, ended);
             if (ended)
                 goto finish_connection;
-            ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
-            
-            if (ret <= 0)
-                goto close_connection;
-            sended_bytes = ret;
 
             if (this->client_timeout_event)
                 this->loop.remove_event(*this->client_timeout_event);
             this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+
+            if (buffer.size() == 0)
+                return;
+
+            ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
+            std::cerr << "Sended " << ret << " bytes" << std::endl;
+            if (ret <= 0)
+                goto close_connection;
+            sended_bytes = ret;
+
+           
         }
 
         return;
@@ -258,8 +267,6 @@ finish_connection:
         if (this->keep_alive == false)
         {
 close_connection:
-            if (this->client_timeout_event)
-                this->loop.remove_event(*this->client_timeout_event);
             close(this->client_sock);
             delete this;
             return;

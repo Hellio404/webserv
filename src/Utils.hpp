@@ -46,6 +46,7 @@ namespace we
     bool                        is_protocol_supported(const std::string &);
     bool                        is_method_supported(const std::string &);
     std::string                 to_hex(size_t);
+    std::string                 to_env_uppercase(const std::string &);
 
     void                        start_recording(unsigned char, const char *);
     void                        stop_recording(unsigned char);

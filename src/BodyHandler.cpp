@@ -2,7 +2,6 @@
 #include "BodyHandler.hpp"
 namespace we
 {
-
     BodyHandler::BodyHandler(Connection *con) : con(con)
     {
         this->is_moved = false;
@@ -88,6 +87,11 @@ namespace we
             throw we::HTTPStatusException(500, "Internal Server Error");
         this->is_moved = true;
         tmpfile_name = dest_path;
+    }
+
+    const std::string& BodyHandler::get_filename()
+    {
+        return tmpfile_name;
     }
 
     BodyHandler::~BodyHandler()

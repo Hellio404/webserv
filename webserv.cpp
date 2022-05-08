@@ -7,8 +7,12 @@
 #include <Regex.hpp>
 #include <fcntl.h>
 
+
+
+
 int main(int ac, char **av)
 {
+    signal(SIGPIPE, SIG_IGN);
     we::Config config;
     we::AMultiplexing *multiplexer = NULL;
     we::EventLoop eventLoop;
@@ -46,7 +50,7 @@ int main(int ac, char **av)
         int fd;
         while ((fd = multiplexer->get_next_fd()) != -1)
         {
-            we::Connection *connection = multiplexer->get_connection(fd);
+            we::BaseConnection *connection = multiplexer->get_connection(fd);
 
             try
             {

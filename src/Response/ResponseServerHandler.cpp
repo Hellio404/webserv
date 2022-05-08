@@ -7,7 +7,9 @@ namespace we
     {
         try
         {
-            if (con->response_type == Connection::ResponseType_File)
+            if (con->response_type == Connection::ResponseType_CGI)
+                con->response_server = new we::ResponseServerCGI(con);
+            else if (con->response_type == Connection::ResponseType_File)
                 con->response_server = new we::ResponseServerFile(con);
             else if (con->response_type == Connection::ResponseType_Directory)
                 con->response_server = new ResponseServerDirectory(con);

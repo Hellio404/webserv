@@ -10,7 +10,7 @@
 #include "HeaderParser.hpp"
 #include "Response/Handler.hpp"
 #include "BodyHandler.hpp"
-
+#include "ConnectionBase.hpp"
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdexcept>
@@ -27,7 +27,9 @@ namespace we
     class LocationBlock;
     class BodyHandler;
 
-    class Connection
+   
+
+    class Connection: public BaseConnection
     {
     private:
         typedef unsigned long long ull;

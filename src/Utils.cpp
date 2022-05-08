@@ -64,6 +64,19 @@ namespace we
         return stream.str();
     }
 
+    std::string to_env_uppercase(const std::string &s)
+    {
+        std::string res(s);
+        for (size_t i = 0; i < res.size(); i++)
+        {
+            if (res[i] == '-')
+                res[i] = '_';
+            else
+                res[i] = toupper(res[i]);
+        }
+        return res;
+    }
+
     int char_to_hex(char c)
     {
         if (c <= '9')

@@ -27,6 +27,7 @@ namespace we
         void    open_tmpfile();
         void    move_tmpfile(std::string const& dest_path);
         bool    add_data(const char *, const char *);
+        const std::string& get_filename();
 
     };
     

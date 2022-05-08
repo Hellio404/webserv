@@ -192,6 +192,7 @@ namespace we
             throw std::runtime_error(error_to_print("invalid port", data));
 
         server_config.listen_addr = host + ":" + port_str;
+        server_config.listen_port = port_str;
 
         memset(&hints, 0, sizeof(hints));
         hints.ai_family = AF_INET;
@@ -222,13 +223,13 @@ namespace we
         if (bind(listen_fd, res->ai_addr, res->ai_addrlen) < 0)
             throw std::runtime_error(std::string("bind ") + strerror(errno));
 
-        freeaddrinfo(res);
         
         if (listen(listen_fd, 1024) < 0)
             throw std::runtime_error(std::string("listen ") + strerror(errno));
 
         server_config.listen_socket = listen_fd;
         config.server_socks[*res->ai_addr] = listen_fd;
+        freeaddrinfo(res);
     }
 
     static void handle_location_methods(LocationBlock &location_config, directive_data const &data, bool deny)
@@ -352,15 +353,18 @@ namespace we
         return NULL;
     }
 
-    static std::vector<directive_data> *get_all_directive_data(const std::string &name, directive_block *root, directive_block *server, directive_block *location)
+    static std::vector<directive_data> get_all_directive_data(const std::string &name, directive_block *root, directive_block *server, directive_block *location)
     {
+        std::vector<directive_data> ret;
+
+        if (root && root->directives.count(name))
+            ret.insert(ret.end(), root->directives[name].begin(), root->directives[name].end());
+        if (server && server->directives.count(name))
+            ret.insert(ret.end(), server->directives[name].begin(), server->directives[name].end());
         if (location && location->directives.count(name))
-            return &location->directives[name];
-        else if (server && server->directives.count(name))
-            return &server->directives[name];
-        else if (root && root->directives.count(name))
-            return &root->directives[name];
-        return NULL;
+            ret.insert(ret.end(), location->directives[name].begin(), location->directives[name].end());
+
+        return ret;
     }
 
     void    init_root_directives(Config &config, directive_block *root)
@@ -429,6 +433,16 @@ namespace we
         }
     }
 
+    void    handle_add_header(LocationBlock &location_config, std::vector<directive_data> *data)
+    {
+        std::vector<directive_data>::const_iterator   it = data->begin();
+
+        for (; it != data->end(); ++it)
+        {
+            location_config.added_headers[it->args[0]] = it->args[1];
+        }
+    }
+
     void    init_location_directives(LocationBlock &location_config, directive_block *root, directive_block *server, directive_block *location)
     {
         static const directive_dispatch dispatcher[] = {
@@ -444,31 +458,35 @@ namespace we
             { "client_body_in_file", &we::set_boolean_directive, OFFSET_OF(LocationBlock, client_body_in_file) },
             { "client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size) },
             { "client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size) },
+            { "cgi_pass", &we::set_string_directive, OFFSET_OF(LocationBlock, cgi) },
+            { "add_header", NULL , 0 },
             { "return", NULL , 0 },
         };
 
         for (int i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
         {
-            std::vector<directive_data> *data = get_all_directive_data(dispatcher[i].name, root, server, location);
+            std::vector<directive_data> data = get_all_directive_data(dispatcher[i].name, root, server, location);
 
-            if (data == NULL)
+            if (data.empty())
                 continue;
 
             if (dispatcher[i].func == NULL)
             {
                 if (strncmp(dispatcher[i].name, "index", 5) == 0)
-                    location_config.index = data->front().args;
+                    location_config.index = data.front().args;
                 else if (strncmp(dispatcher[i].name, "error_page", 10) == 0)
-                    handle_error_page(location_config, data);
+                    handle_error_page(location_config, &data);
                 else if (strncmp(dispatcher[i].name, "allowed_methods", 15) == 0)
-                    handle_location_methods(location_config, data->front(), false);
+                    handle_location_methods(location_config, data.front(), false);
                 else if (strncmp(dispatcher[i].name, "denied_methods", 13) == 0)
-                    handle_location_methods(location_config, data->front(), true);
+                    handle_location_methods(location_config, data.front(), true);
+                else if (strncmp(dispatcher[i].name, "add_header", 9) == 0)
+                    handle_add_header(location_config, &data);
                 else if (strncmp(dispatcher[i].name, "return", 6) == 0)
-                    handle_return(location_config, data->front());
+                    handle_return(location_config, data.front());
             }
             else
-                dispatcher[i].func(&location_config, data->front(), dispatcher[i].offset);
+                dispatcher[i].func(&location_config, data.front(), dispatcher[i].offset);
         }
 
 
@@ -481,12 +499,18 @@ namespace we
         // Upload related handlers
         location_config.handlers[Phase_Access].push_back(&we::upload_handler);
 
+        // CGI related handlers
+        location_config.handlers[Phase_Access].push_back(&we::cgi_handler);
+
         // File related handlers
         location_config.handlers[Phase_Access].push_back(&we::conditional_handler);
         location_config.handlers[Phase_Access].push_back(&we::file_handler);
 
         // Error handlers
-        location_config.handlers[Phase_Access].push_back(&we::post_access_handler);
+        location_config.handlers[Phase_Post_Access].push_back(&we::post_access_handler);
+
+        // Inject Headers
+        location_config.handlers[Phase_Inject_Headers].push_back(&we::inject_header_handler);
 
         // create ResponseServer
         location_config.handlers[Phase_Reserved_3].push_back(&we::response_server_handler);

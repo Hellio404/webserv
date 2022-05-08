@@ -354,6 +354,195 @@ namespace we
         this->file.close();
     }
     // END OF ResponseServerFileSingleRange
+
+    // ResponseServerCGI
+    ResponseServerCGI::ResponseServerCGI(Connection *connection): ResponseServer(connection)
+    {
+        this->headers_ended = false;
+        int input_fd = 0;
+        if (connection->body_handler)
+        {
+            input_fd = open(connection->body_handler->get_filename().c_str(), O_RDONLY);
+            if (input_fd == -1)
+                throw we::HTTPStatusException(500, "Internal Server Error");
+        }
+        if (pipe(fds) == -1)
+        {
+            if (input_fd)
+                close(input_fd);
+            throw we::HTTPStatusException(500, "Internal Server Error");
+        }
+        this->pid = fork();
+        if (pid < 0)
+        {
+            if (input_fd)
+                close(input_fd);
+            close(fds[0]);
+            close(fds[1]);
+            throw we::HTTPStatusException(500, "Internal Server Error");
+        }
+        if (pid == 0)
+        {
+            if (dup2(fds[1], STDOUT_FILENO) == -1 || dup2(input_fd, STDIN_FILENO) == -1)
+                exit(69);
+            close(fds[0]);
+            close(fds[1]);
+            if (input_fd)
+                close(input_fd);
+            this->set_environment();
+            const char *argv[] = {connection->location->cgi.c_str(), connection->requested_resource.c_str(), NULL};
+            execve(argv[0], (char **)argv, this->env);
+            exit(69);
+        } else
+        {
+            
+            if (input_fd)
+                close(input_fd);
+            close(fds[1]);
+            connection->multiplexing.add(fds[0], this, we::AMultiplexing::Read);
+        }
+        if (this->connection->to_chunk)
+            this->connection->res_headers.insert(std::make_pair("Transfer-Encoding", "chunked"));
+        header_buffer = make_response_header(connection->res_headers);
+        header_buffer.erase(header_buffer.end() - 2, header_buffer.end());
+    }
+
+    ResponseServerCGI::~ResponseServerCGI()
+    {
+        std::cerr << "CGI ended" << std::endl;
+        // (*(int *)0) = 0;
+        if (this->pid)
+            kill(this->pid, SIGKILL);
+        this->connection->multiplexing.remove(fds[0]);
+        close(fds[0]);
+    }
+
+
+    void    ResponseServerCGI::load_next_data(std::string & str)
+    {
+        str = "";
+    }
+
+    void    ResponseServerCGI::handle_connection()
+    {
+        int ret;
+        // if ((ret = waitpid(pid, NULL, WNOHANG)) < 0)
+        //     return delete connection; // TODO: send an error message if no data was sent
+        std::cerr << buffer_size << std::endl;
+        if (buffer_size <= internal_buffer.size())
+            return ;
+        ret = read(fds[0], _buffer, buffer_size - internal_buffer.size());
+        if (ret < 0)
+        {
+            std::cerr <<"CGI READ: "<< strerror(errno) << std::endl;
+            return delete connection; // TODO: send an error message if no data was sent
+        }
+        if (ret == 0) // EOF
+        {
+            std::cerr << "EOF" << std::endl;
+            if (!ended && this->connection->to_chunk && headers_ended)
+                internal_buffer.append("0\r\n\r\n");
+            else if (!ended)
+                internal_buffer.append(header_buffer);
+            ended = true;
+            this->connection->multiplexing.remove(fds[0]);
+            close(fds[0]);
+            return ;
+        }
+        if (!headers_ended)
+        {
+            header_buffer.append(_buffer, ret);
+            size_t i = 0;
+            if (header_buffer.size() >= 2)
+                for (; i < header_buffer.size() - 1; i++)
+                {
+                    if ((header_buffer[i] == '\r' && header_buffer[i + 1] == '\n')) 
+                    {
+                        if ((header_buffer[i + 2] == '\r' && header_buffer[i + 3] == '\n') || header_buffer[i + 2] == '\n')
+                        {
+                            headers_ended = true;
+                            break;
+                        }
+                    }
+                    if (header_buffer[i] == '\n')
+                    {
+                        if ((header_buffer[i + 1] == '\r' && header_buffer[i + 2] == '\n') || header_buffer[i + 1] == '\n')
+                        {
+                            headers_ended = true;
+                            break;
+                        }
+                    }
+                }
+            if (headers_ended)
+            {
+                std::string::iterator it = header_buffer.begin() + i;
+                int newline = 0;
+                while (newline!=2)
+                    newline += *it++ == '\n';
+                std::string s(it, header_buffer.end());
+                header_buffer.erase(it, header_buffer.end());
+                transform_data(s);
+                internal_buffer.append(header_buffer);
+                internal_buffer.append(s);
+            }
+        }
+        else
+        {
+            std::string s(_buffer, ret);
+            transform_data(s);
+            internal_buffer.append(s);
+        }
+    }
+
+    bool    ResponseServerCGI::set_environment()
+    {
+        std::vector<std::string> env_v;
+
+        env_v.push_back("REDIRECT_STATUS=200");
+        env_v.push_back("GATEWAY_INTERFACE=CGI/1.1");
+        env_v.push_back("SERVER_SOFTWARE=BetterNginx/0.69.420");
+        env_v.push_back("SERVER_NAME=" + this->connection->req_headers["Host"]);
+
+        env_v.push_back("REMOTE_ADDR=" + this->connection->client_addr_str);
+        env_v.push_back("SERVER_PORT=" + this->connection->server->listen_port);
+        env_v.push_back("REQUEST_METHOD=" + this->connection->req_headers["@method"]);
+        env_v.push_back("SERVER_PROTOCOL=" + this->connection->req_headers["@protocol"]);
+
+        // TODO: PATH_INFO
+        // TODO: PATH_TRANSLATED
+        env_v.push_back("PATH_INFO=" + this->connection->requested_resource);
+        env_v.push_back("PATH_TRANSLATED=" + this->connection->requested_resource);
+        env_v.push_back("SCRIPT_NAME=" + this->connection->location->cgi);
+
+        if (this->connection->req_headers.find("@query") != this->connection->req_headers.end())
+            env_v.push_back("QUERY_STRING=" + this->connection->req_headers["@query"]);
+        if (this->connection->req_headers.find("Content-Type") != this->connection->req_headers.end())
+            env_v.push_back("CONTENT_TYPE=" + this->connection->req_headers["Content-Type"]);
+        if (this->connection->req_headers.find("Content-Length") != this->connection->req_headers.end())
+            env_v.push_back("CONTENT_LENGTH=" + this->connection->req_headers["Content-Length"]);
+        
+        we::HeaderParser::Headers_t::const_iterator it = this->connection->req_headers.begin();
+        for (; it != this->connection->req_headers.end(); ++it)
+        {
+            if (it->first[0] == '@')
+                continue;
+            if (it->first == "Content-Type" || it->first == "Content-Length")
+                continue;
+            env_v.push_back("HTTP_" + we::to_env_uppercase(it->first) + "=" + it->second);
+        }
+
+        this->env = new char*[env_v.size() + 1];
+        for (size_t i = 0; i < env_v.size(); ++i)
+        {
+            this->env[i] = new char[env_v[i].size() + 1];
+            memcpy(this->env[i], env_v[i].c_str(), env_v[i].size());
+            this->env[i][env_v[i].size()] = '\0';
+        }
+        this->env[env_v.size()] = NULL;
+
+        return true;
+    }
+    // END OF ResponseServerCGI
 }
 
 /*

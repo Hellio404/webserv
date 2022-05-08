@@ -99,7 +99,7 @@ namespace we
     {
         this->client_body_timeout = 60 * 1000;
         this->client_body_in_file = false;
-        this->client_body_buffer_size = 4 * 1024;
+        this->client_body_buffer_size = 2 * 1024 * 1024;
         this->client_max_body_size = 16 * 1024 * 1024;
         this->regex = NULL;
         this->pattern = "/";
@@ -155,6 +155,8 @@ namespace we
         this->redirect_url = other.redirect_url;
         this->return_code = other.return_code;
         this->allowed_method_found = other.allowed_method_found;
+        this->cgi = other.cgi;
+        this->added_headers = other.added_headers;
     }
 
     std::string LocationBlock::get_error_page(int status) const
@@ -204,7 +206,8 @@ namespace we
         we::register_directive("keep_alive_timeout", 1, 0, false, false, true, true, false);
         we::register_directive("enable_lingering_close", 1, 0, false, false, true, true, false);
         we::register_directive("lingering_close_timeout", 1, 0, false, false, true, true, false);
-
+        we::register_directive("add_header", 2, 0, false, true, true, true, true);
+        
         // Location level directives
         we::register_directive("root", 1, 0, false, false, true, true, true);
         we::register_directive("index", 1, -1, false, false, true, true, true);
@@ -219,6 +222,7 @@ namespace we
         we::register_directive("client_body_buffer_size", 1, 0, false, false, true, true, true);
         we::register_directive("client_max_body_size", 1, 0, false, false, true, true, true);
         we::register_directive("return", 2, 0, false, false, false, false, true);
+        we::register_directive("cgi_pass", 1, 0, false, false, false, false, true);
     }
 
     static void validate_config(Config &config)
