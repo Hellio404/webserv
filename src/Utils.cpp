@@ -312,4 +312,21 @@ namespace we
         }
     }
 
+    bool compare_case_insensitive(char a, char b)
+    {
+        return std::tolower(a) == std::tolower(b);
+    }
+
+
+    void insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive>  &map, std::string const &key, std::string const &value)
+    {
+        map[key] = value;
+    }
+
+    void insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &map, std::string const &key, std::string const &value)
+    {
+        map.insert(std::make_pair(key, value));
+    }
+
+
 }

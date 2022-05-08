@@ -27,7 +27,6 @@ namespace we
         if (con->response_type == Connection::ResponseType_File && con->metadata_set == false)
         {
             struct stat st;
-            std::cerr << "post_access_handler: " << con->requested_resource << std::endl;
             if (stat(con->requested_resource.c_str(), &st) == 0)
             {
                 std::string content_length = we::to_string(st.st_size);

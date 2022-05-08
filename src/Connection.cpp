@@ -8,13 +8,12 @@ namespace we
     static void    timeout_event(EventData data)
     {
         Connection *conn = reinterpret_cast<Connection *>(data.pointer);
-        conn->timeout();
         conn->client_timeout_event = NULL;
+        conn->timeout();
     }
 
     static void    body_timeout_event(EventData data)
     {
-
         Connection *conn = reinterpret_cast<Connection *>(data.pointer);
         conn->keep_alive = false;
         conn->response_type = Connection::ResponseType_File;
@@ -28,6 +27,9 @@ namespace we
         conn->client_timeout_event = &conn->loop.add_event(timeout_event, conn->event_data, conn->server->server_send_timeout);
     }
 
+    unsigned long long Connection::connection_count = 0;
+    unsigned long long Connection::connection_total = 0;
+    
     Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, 5000)
     {
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
@@ -37,7 +39,7 @@ namespace we
         this->event_data.pointer = this;
         this->connected_socket = connected_socket;
 
-        
+        this->keep_alive = true;
         this->client_headers_buffer = NULL;
         this->client_body_buffer = NULL;
         this->response_server = NULL;
@@ -46,6 +48,8 @@ namespace we
         this->reset();
 
         this->client_headers_buffer = new char[this->config.client_max_header_size];
+        this->connection_count++;
+        this->connection_total++;
     }
 
     Connection::~Connection()
@@ -60,6 +64,17 @@ namespace we
             delete[] this->client_body_buffer;
         if (this->response_server != NULL)
             delete this->response_server;
+        this->connection_count--;
+    }
+
+    unsigned long long Connection::get_connection_count()
+    {
+        return Connection::connection_count;
+    }
+
+    unsigned long long Connection::get_connection_total()
+    {
+        return Connection::connection_total;
     }
 
     void Connection::print_headers()
@@ -119,6 +134,8 @@ namespace we
 
                 if (end)
                 {
+                    // print_headers();
+                    // print_headers();
                     this->expanded_url = this->req_headers["@expanded_url"]; // Extract the expanded url
                     this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
 
@@ -130,9 +147,7 @@ namespace we
                     if (this->is_body_chunked || this->client_content_length > 0)
                     {
                         this->status = Connection::ReadBody;
-                        if (this->client_timeout_event)
-                            this->loop.remove_event(*this->client_timeout_event);
-                        this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, this->location->client_body_timeout);
+                        this->set_body_timeout(this->location->client_body_timeout);
                         this->body_handler = new BodyHandler(this); 
                     }
                     else
@@ -140,9 +155,7 @@ namespace we
                         this->status = Connection::Write;
                         this->multiplexing.remove(this->client_sock);
                         this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
-                        if (this->client_timeout_event)
-                            this->loop.remove_event(*this->client_timeout_event);
-                        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+                        this->set_timeout(this->server->server_send_timeout);
                     }
                 }
             }
@@ -165,10 +178,7 @@ namespace we
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
                 this->phase = Phase_End;
                 response_server_handler(this);
-                if (this->client_timeout_event)
-                    this->loop.remove_event(*this->client_timeout_event);
-                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
-
+                this->set_timeout(this->server->server_send_timeout);
             }
             catch (...)
             {
@@ -197,16 +207,10 @@ namespace we
                     this->status = Connection::Write;
                     this->multiplexing.remove(this->client_sock);
                     this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
-                    if (this->client_timeout_event)
-                        this->loop.remove_event(*this->client_timeout_event);
-                    this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+                    this->set_timeout(this->server->server_send_timeout);
                 }
                 else
-                {
-                    if (this->client_timeout_event)
-                        this->loop.remove_event(*this->client_timeout_event);
-                    this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, this->location->client_body_timeout);
-                }
+                    this->set_timeout(this->location->client_body_timeout);
             }
             catch(const we::HTTPStatusException& e)
             {
@@ -220,9 +224,7 @@ namespace we
 
                 this->phase = Phase_End;
                 response_server_handler(this);
-                if (this->client_timeout_event)
-                    this->loop.remove_event(*this->client_timeout_event);
-                this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
+                this->set_timeout(this->server->server_send_timeout);
             }
         }
         else if (this->status == Connection::Write)
@@ -245,21 +247,20 @@ namespace we
             if (ended)
                 goto finish_connection;
 
-            if (this->client_timeout_event)
-                this->loop.remove_event(*this->client_timeout_event);
-            this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->server->server_send_timeout);
-
             if (buffer.size() == 0)
                 return;
+            this->set_timeout(this->server->server_send_timeout);
 
             ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
-            std::cerr << "Sended " << ret << " bytes" << std::endl;
             if (ret <= 0)
                 goto close_connection;
             sended_bytes = ret;
 
-           
+
         }
+        else if (this->status == Connection::Close)
+            goto close_connection;
+
 
         return;
 finish_connection:
@@ -317,11 +318,8 @@ close_connection:
 
         this->multiplexing.remove(this->client_sock);
         this->multiplexing.add(this->client_sock, this, AMultiplexing::Read);
-        
 
-        if (this->client_timeout_event)
-            this->loop.remove_event(*this->client_timeout_event);
-        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, this->config.client_header_timeout);
+        this->set_timeout(this->config.client_header_timeout);
 
         if (body_handler)
         {
@@ -350,6 +348,20 @@ close_connection:
         close(this->client_sock);
         delete this;
         return;
+    }
+
+    void Connection::set_timeout(long long timeout_ms)
+    {
+        if (this->client_timeout_event)
+            this->loop.remove_event(*this->client_timeout_event);
+        this->client_timeout_event = &this->loop.add_event(timeout_event, this->event_data, timeout_ms);
+    }
+
+    void Connection::set_body_timeout(long long timeout_ms)
+    {
+        if (this->client_timeout_event)
+            this->loop.remove_event(*this->client_timeout_event);
+        this->client_timeout_event = &this->loop.add_event(body_timeout_event, this->event_data, timeout_ms);
     }
 }
 

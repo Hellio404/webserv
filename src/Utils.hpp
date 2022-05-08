@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <map>
 #include <utility>
 #include <string.h>
 #include <iomanip>
@@ -73,5 +74,10 @@ namespace we
     size_t                      number_len(size_t s);
 
     bool                        is_bodiless_response(unsigned int);
+    bool compare_case_insensitive(char a, char b);
+    void insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
+
+    void insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
+    
 
 }
