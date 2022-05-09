@@ -8,7 +8,13 @@ namespace we
         if (con->response_type == Connection::ResponseType_None)
         {
             struct stat st;
-            if (stat(con->requested_resource.c_str(), &st) != 0)
+            if (con->req_headers["@method"] != "GET" && con->req_headers["@method"] != "HEAD")
+            {
+                con->response_type = Connection::ResponseType_File;
+                con->res_headers.insert(std::make_pair("@response_code", "405"));
+                con->requested_resource = con->location->get_error_page(405);
+            }
+            else if (stat(con->requested_resource.c_str(), &st) != 0)
             {
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "404"));

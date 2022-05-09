@@ -74,10 +74,10 @@ namespace we
     size_t                      number_len(size_t s);
 
     bool                        is_bodiless_response(unsigned int);
-    bool compare_case_insensitive(char a, char b);
-    void insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
+    bool                        compare_case_insensitive(char a, char b);
+    void                        insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
 
-    void insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
-    
+    void                        insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
+    void                        mkdir_recursive(const char *);
 
 }

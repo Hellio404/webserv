@@ -1,14 +1,14 @@
 #include "Config.hpp"
 #include <unistd.h>
 #include <set>
-
+# define MAX_BUFFER_SIZE (1024 * 1024 * 128)
 namespace we
 {
     Config::Config()
     {
         this->multiplex_type = Config::MulNone;
         this->client_header_timeout = 60 * 1000;
-        this->client_header_buffer_size = 4 * 1024;
+        this->client_header_buffer_size = 2 * 1024 * 1024;
         this->client_max_header_size = 16 * 1024 * 1024;
         this->max_internal_redirect = 10;
 
@@ -53,11 +53,7 @@ namespace we
     {
         this->listen_socket = -1;
         this->server_send_timeout = 60 * 1000;
-        this->server_body_buffer_size = 4 * 1024;
-        this->keep_alive = false;
-        this->keep_alive_timeout = 60 * 1000;
-        this->enable_lingering_close = false;
-        this->lingering_close_timeout = 60 * 1000;
+        this->server_body_buffer_size = 2 * 1024 * 1024;
     }
 
     const LocationBlock *ServerBlock::get_location(const std::string& uri) const
@@ -98,7 +94,6 @@ namespace we
     LocationBlock::LocationBlock()
     {
         this->client_body_timeout = 60 * 1000;
-        this->client_body_in_file = false;
         this->client_body_buffer_size = 2 * 1024 * 1024;
         this->client_max_body_size = 16 * 1024 * 1024;
         this->regex = NULL;
@@ -132,7 +127,6 @@ namespace we
     LocationBlock::LocationBlock(LocationBlock const &other)
     {
         this->client_body_timeout = other.client_body_timeout;
-        this->client_body_in_file = other.client_body_in_file;
         this->client_body_buffer_size = other.client_body_buffer_size;
         this->client_max_body_size = other.client_max_body_size;
 
@@ -175,7 +169,7 @@ namespace we
         else if (method == "PUT")
             return this->allowed_methods.put >= allowed_method_found;
         else if (method == "HEAD")
-            return this->allowed_methods.head >= allowed_method_found;
+            return this->allowed_methods.head >= allowed_method_found || this->allowed_methods.get >= allowed_method_found;
         else if (method == "DELETE")
             return this->allowed_methods.del >= allowed_method_found;
         else
@@ -202,10 +196,6 @@ namespace we
         we::register_directive("server_name", 1, -1, false, false, false, true, false);
         we::register_directive("server_send_timeout", 1, 0, false, false, true, true, false);
         we::register_directive("server_body_buffer_size", 1, 0, false, false, true, true, false);
-        we::register_directive("keep_alive", 1, 0, false, false, true, true, false);
-        we::register_directive("keep_alive_timeout", 1, 0, false, false, true, true, false);
-        we::register_directive("enable_lingering_close", 1, 0, false, false, true, true, false);
-        we::register_directive("lingering_close_timeout", 1, 0, false, false, true, true, false);
         we::register_directive("add_header", 2, 0, false, true, true, true, true);
         
         // Location level directives
@@ -218,11 +208,10 @@ namespace we
         we::register_directive("allowed_methods", 1, -1, false, false, true, true, true);
         we::register_directive("denied_methods", 1, -1, false, false, true, true, true);
         we::register_directive("client_body_timeout", 1, 0, false, false, true, true, true);
-        we::register_directive("client_body_in_file", 1, 0, false, false, true, true, true);
         we::register_directive("client_body_buffer_size", 1, 0, false, false, true, true, true);
         we::register_directive("client_max_body_size", 1, 0, false, false, true, true, true);
-        we::register_directive("return", 2, 0, false, false, false, false, true);
         we::register_directive("cgi_pass", 1, 0, false, false, false, false, true);
+        we::register_directive("return", 2, 0, false, false, false, false, true);
     }
 
     static void validate_config(Config &config)
@@ -241,6 +230,12 @@ namespace we
                 }
             }
         }
+        if (config.client_header_timeout <= 0)
+            throw std::runtime_error("client_header_timeout must be greater than 0");
+        if (config.client_max_header_size <= 0)
+            throw std::runtime_error("client_max_header_size must be greater than 0");
+        if (config.client_header_buffer_size <= 0 || config.client_header_buffer_size > config.client_max_header_size || config.client_header_buffer_size > MAX_BUFFER_SIZE)
+            throw std::runtime_error("client_header_buffer_size invalid size for the buffer");
     }
 
     static void validate_server_config(ServerBlock *server_config, directive_block *root_block, directive_block *server_block)
@@ -249,6 +244,14 @@ namespace we
 
         for (std::vector<LocationBlock>::iterator lb_it = server_config->locations.begin(); lb_it != server_config->locations.end(); ++lb_it)
         {
+            if (lb_it->client_body_timeout <= 0)
+                throw std::runtime_error("client_body_timeout must be greater than 0");
+            if (lb_it->client_max_body_size <= 0)
+                throw std::runtime_error("client_max_body_size must be greater than 0");
+            if (lb_it->client_body_buffer_size <= 0 || lb_it->client_body_buffer_size > lb_it->client_max_body_size || lb_it->client_body_buffer_size > MAX_BUFFER_SIZE)
+                throw std::runtime_error("client_body_buffer_size invalid size for the buffer");
+            
+
             std::pair<std::string, LocationBlock::Modifier> location = std::make_pair(lb_it->pattern, lb_it->modifier);
             if (locations.count(location))
                 throw std::runtime_error("conflicting location pattern \"" + lb_it->pattern + "\" on " + server_config->listen_addr);
@@ -261,6 +264,11 @@ namespace we
             init_location_directives(location_config, root_block, server_block, NULL);
             server_config->locations.push_back(location_config);
         }
+
+        if (server_config->server_send_timeout <= 0)
+            throw std::runtime_error("server_send_timeout must be greater than 0");
+        if (server_config->server_body_buffer_size <= 0 || server_config->server_body_buffer_size > MAX_BUFFER_SIZE)
+            throw std::runtime_error("server_body_buffer_size invalid size for the buffer");
     }
 
     bool    load_config(const std::string &file_name, Config &config)

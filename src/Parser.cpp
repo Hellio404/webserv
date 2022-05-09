@@ -18,26 +18,24 @@ namespace we
         dir.allow_in_location = allow_in_location;
     }
 
-    directive_data::directive_data(std::string const& path, unsigned int line, unsigned int column)
+    directive_data::directive_data(std::string const &path, unsigned int line, unsigned int column)
     {
         this->path = path;
         this->line = line;
         this->column = column;
     }
 
-
-    Parser::Parser(std::string const &path) :  blocks(1)
+    Parser::Parser(std::string const &path) : blocks(1)
     {
         add_file(path);
 
         blocks[0].name = "_root";
         current_block = 0;
-        // level = 0; // debug
         file_level = 0;
         current_directive = 0;
     }
 
-    Parser::file_info::file_info(std::string const& path): path(path), line_number(1), column_number(1)
+    Parser::file_info::file_info(std::string const &path) : path(path), line_number(1), column_number(1)
     {
         f = new std::fstream(path, std::fstream::in);
         if (!f->is_open())
@@ -53,7 +51,7 @@ namespace we
         delete f;
     }
 
-    void    Parser::add_file(std::string const &path)
+    void Parser::add_file(std::string const &path)
     {
         if (files.size() > 100)
             throw std::runtime_error("Circular include or too many files");
@@ -62,7 +60,7 @@ namespace we
         file = files.top()->f;
     }
 
-    void    Parser::remove_file()
+    void Parser::remove_file()
     {
         file_info *f = files.top();
         files.pop();
@@ -148,14 +146,14 @@ namespace we
 
     static bool is_special_char(char c)
     {
-        return   c == '{' || c == '}' || c == ';'  || c == '#' || c == '\n' || c == '\t' || c == ' ' || c == '\\';
+        return c == '{' || c == '}' || c == ';' || c == '#' || c == '\n' || c == '\t' || c == ' ' || c == '\\';
     }
 
     std::string Parser::get_token(bool strict)
     {
         std::string token;
         this->next_token();
-        while (!file->eof() && ((strict && (isalpha(peek()) || peek() == '_')) || (!strict && !is_special_char(peek()))) )
+        while (!file->eof() && ((strict && (isalpha(peek()) || peek() == '_')) || (!strict && !is_special_char(peek()))))
             token += this->next();
         return token;
     }
@@ -176,7 +174,7 @@ namespace we
             {
                 if (is_skipped && !is_special_char(peek()))
                     arg += '\\';
-                    
+
                 arg += this->next();
                 is_skipped = false;
             }
@@ -196,7 +194,7 @@ namespace we
             this->consume(0);
     }
 
-    void Parser::read_block(const std::string &name, const std::string& path, unsigned int line, unsigned int col, std::vector<std::string> args)
+    void Parser::read_block(const std::string &name, const std::string &path, unsigned int line, unsigned int col, std::vector<std::string> args)
     {
 
         this->consume('{');
@@ -220,9 +218,7 @@ namespace we
             current_directive = 3;
         this->block();
         this->consume('}');
-        // this->level--;
         this->file_level--;
-        // std::cerr << std::string(level, '\t') << "}" << std::endl;
         current_directive = old_directive;
         current_block = old_block;
     }
@@ -241,7 +237,6 @@ namespace we
                 this->unexpected();
             return (void)this->consume(';');
         }
-        // std::cerr << std::string(level, '\t') <<  name << " ";
 
         if (file->eof() || (peek() != '\n' && peek() != ';' && peek() != ' ' && peek() != '\t' && peek() != '#' && peek() != '{'))
             this->unexpected();
@@ -271,7 +266,6 @@ namespace we
         if (current_directive != 3 && this->blocks[current_block].directives.count(name) > 0 && !dir_infos[name].allow_duplicate)
             throw std::runtime_error("Duplicate directive '" + name + "' at " + file_pos(line, col));
 
-        
         this->blocks[current_block].directives[name].push_back(directive_data(path, line, col));
         std::vector<std::string> &args = this->blocks[current_block].directives[name].back().args;
 
@@ -279,10 +273,7 @@ namespace we
         {
             std::string arg = this->get_arg();
             if (!arg.empty())
-            {
                 args.push_back(arg);
-                // std::cerr << arg << " ";
-            }
         }
         if (current_directive != 3)
         {
@@ -297,7 +288,6 @@ namespace we
         else
         {
             this->consume(';');
-            // std::cerr << ";" << std::endl;
             if (name == "include")
             {
                 unsigned int old_level = this->file_level;
@@ -307,12 +297,12 @@ namespace we
                 {
                     this->block();
                 }
-                catch(...)
+                catch (...)
                 {
                     this->remove_file();
                     throw;
                 }
-                
+
                 this->remove_file();
                 this->file_level = old_level;
                 this->blocks[current_block].directives.erase(name);

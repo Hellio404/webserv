@@ -1,5 +1,6 @@
 
 #include "BodyHandler.hpp"
+
 namespace we
 {
     BodyHandler::BodyHandler(Connection *con) : con(con)
@@ -42,9 +43,7 @@ namespace we
             return true;
         }
         else if (buffer_data.size() + (end - start) < buffer_size)
-        {
             buffer_data.append(start, end);
-        }
         else
         {
             tmpfile.write(buffer_data.c_str(), buffer_data.size());
@@ -89,7 +88,7 @@ namespace we
         tmpfile_name = dest_path;
     }
 
-    const std::string& BodyHandler::get_filename()
+    const std::string &BodyHandler::get_filename()
     {
         return tmpfile_name;
     }

@@ -137,6 +137,9 @@ namespace we
 
     int file_handler(Connection *con)
     {
+        if (con->req_headers["@method"] != "GET" && con->req_headers["@method"] != "HEAD")
+            return 0;
+        
         std::string &requested_resource = con->requested_resource;
 
         if (con->response_type != Connection::ResponseType_None)
@@ -173,7 +176,7 @@ namespace we
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("Content-Range", "bytes */" + content_length));
                     con->res_headers.insert(std::make_pair("@response_code", "416"));
-                    con->requested_resource = con->location->get_error_page(416); // TODO: recalculate length
+                    con->requested_resource = con->location->get_error_page(416);
                     return 1;
                 }
             }

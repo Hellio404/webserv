@@ -31,6 +31,13 @@ namespace we
             try
             {
                 std::string uploaded_file = we::get_file_fullpath(con->location->upload_dir, con->expanded_url);
+
+                if (uploaded_file[uploaded_file.size() - 1] == '/')
+                    throw std::runtime_error("Directory upload is not allowed");
+
+                std::string directories = uploaded_file.substr(0, uploaded_file.find_last_of('/'));
+                mkdir_recursive(directories.c_str());
+
                 con->body_handler->move_tmpfile(uploaded_file);
 
                 struct stat st;
@@ -81,7 +88,7 @@ namespace we
                     return 1;
                 }
 
-                fd = open(uploaded_file.c_str(), O_RDONLY);
+                fd = open(uploaded_file.c_str(), O_WRONLY);
                 if (fd == -1)
                 {
                     con->response_type = Connection::ResponseType_File;

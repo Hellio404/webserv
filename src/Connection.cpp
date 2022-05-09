@@ -23,6 +23,8 @@ namespace we
         conn->multiplexing.remove(conn->client_sock);
         conn->multiplexing.add(conn->client_sock, conn, AMultiplexing::Write);
         conn->phase = Phase_End;
+        conn->metadata_set = false;
+        post_access_handler(conn);
         response_server_handler(conn);
         conn->client_timeout_event = &conn->loop.add_event(timeout_event, conn->event_data, conn->server->server_send_timeout);
     }
@@ -30,7 +32,7 @@ namespace we
     unsigned long long Connection::connection_count = 0;
     unsigned long long Connection::connection_total = 0;
     
-    Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, 5000)
+    Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, config.client_max_header_size)
     {
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
         if (this->client_sock == -1)
@@ -47,7 +49,7 @@ namespace we
         this->client_timeout_event = NULL;
         this->reset();
 
-        this->client_headers_buffer = new char[this->config.client_max_header_size];
+        this->client_headers_buffer = new char[this->config.client_header_buffer_size];
         this->connection_count++;
         this->connection_total++;
     }
@@ -64,6 +66,8 @@ namespace we
             delete[] this->client_body_buffer;
         if (this->response_server != NULL)
             delete this->response_server;
+        if (this->body_handler)
+            delete this->body_handler;
         this->connection_count--;
     }
 
@@ -110,6 +114,7 @@ namespace we
 
     void Connection::handle_connection()
     {
+    Start_handle_connection:
         if (this->status == Connection::Read)
         {
 
@@ -122,7 +127,7 @@ namespace we
             }
             else
             {
-                recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
+                recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_header_buffer_size, 0);
             }
 
             if (recv_ret <= 0)
@@ -135,10 +140,8 @@ namespace we
                 end = client_header_parser.append(str, str + recv_ret);
                 if (end)
                 {
-                    // print_headers();
                     this->expanded_url = this->req_headers["@expanded_url"]; // Extract the expanded url
                     this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
-
                     this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
                     this->location = this->server->get_location(this->expanded_url);
                     this->requested_resource = we::get_file_fullpath(this->location->root, this->expanded_url);
@@ -148,6 +151,7 @@ namespace we
                         this->status = Connection::ReadBody;
                         this->set_body_timeout(this->location->client_body_timeout);
                         this->body_handler = new BodyHandler(this); 
+                        client_body_buffer = new char[this->location->client_body_buffer_size];
                     }
                     else
                     {
@@ -156,6 +160,7 @@ namespace we
                         this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
                         this->set_timeout(this->server->server_send_timeout);
                     }
+
                 }
             }
             catch (std::exception &e)
@@ -168,14 +173,21 @@ namespace we
                     this->location = this->server->get_location("/");
                 this->response_type = Connection::ResponseType_File;
                 if (dynamic_cast<we::HTTPStatusException *>(&e) != NULL)
+                {
                     this->res_headers.insert(std::make_pair("@response_code", we::to_string(dynamic_cast<we::HTTPStatusException *>(&e)->statusCode)));
+                    this->requested_resource = this->location->get_error_page(dynamic_cast<we::HTTPStatusException *>(&e)->statusCode);
+                }
                 else
+                {
                     this->res_headers.insert(std::make_pair("@response_code", "500"));
-                this->requested_resource = this->location->get_error_page(500);
+                    this->requested_resource = this->location->get_error_page(500);
+                }
                 this->status = Connection::Write; 
                 this->multiplexing.remove(this->client_sock);
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
                 this->phase = Phase_End;
+                this->metadata_set = false;
+                post_access_handler(this);
                 response_server_handler(this);
                 this->set_timeout(this->server->server_send_timeout);
             }
@@ -191,17 +203,21 @@ namespace we
                 ssize_t recv_ret;
                 if (this->client_remaining_data.size())
                 {
-                    recv_ret = this->client_remaining_data.size();
-                    std::memcpy(this->client_headers_buffer, this->client_remaining_data.c_str(), recv_ret);
-                    this->client_remaining_data.clear();
+                    recv_ret = std::min(this->client_remaining_data.size(), this->location->client_body_buffer_size);
+                    std::memcpy(this->client_body_buffer, this->client_remaining_data.c_str(), recv_ret);
+                    this->client_remaining_data.assign(this->client_remaining_data.begin() + recv_ret, this->client_remaining_data.end());
                 }
                 else
-                    recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
+                {
+                    recv_ret = recv(this->client_sock, this->client_body_buffer, this->location->client_body_buffer_size, 0);
+                }
 
                 if (recv_ret <= 0)
                     goto close_connection;
 
-                if (this->body_handler->add_data(this->client_headers_buffer, this->client_headers_buffer + recv_ret))
+               
+
+                if (this->body_handler->add_data(this->client_body_buffer, this->client_body_buffer + recv_ret))
                 {
                     this->status = Connection::Write;
                     this->multiplexing.remove(this->client_sock);
@@ -222,6 +238,8 @@ namespace we
                 this->multiplexing.add(this->client_sock, this, AMultiplexing::Write);
 
                 this->phase = Phase_End;
+                this->metadata_set = false;
+                post_access_handler(this);
                 response_server_handler(this);
                 this->set_timeout(this->server->server_send_timeout);
             }
@@ -251,6 +269,15 @@ namespace we
             this->set_timeout(this->server->server_send_timeout);
 
             ssize_t ret = send(this->client_sock, buffer.c_str(), buffer.size(), 0);
+            // for (size_t i = 0; i < buffer.size(); i++)
+            // {
+            //      if (buffer[i] == '\r')
+            //         std::cerr << "\\r";
+            //     else if (buffer[i] == '\n')
+            //         std::cerr << "\\n" << std::endl;
+            //     else
+            //         std::cerr << buffer[i];
+            // }
             if (ret <= 0)
                 goto close_connection;
             sended_bytes = ret;
@@ -260,7 +287,8 @@ namespace we
         else if (this->status == Connection::Close)
             goto close_connection;
 
-
+        if ((this->status == Connection::Read || this->status == Connection::ReadBody) && this->client_remaining_data.size())
+            goto Start_handle_connection;
         return;
 finish_connection:
         this->multiplexing.remove(this->client_sock);
