@@ -122,6 +122,7 @@ namespace we
             throw   std::runtime_error(error_to_print("invalid argument", data));
         long long ret = atou(std::string(data.args[0].begin(), data.args[0].end() - 2), data);
         std::string unit = std::string(data.args[0].end() - 2, data.args[0].end());
+        
         if (unit == "kb")
         {
             if (ret > 9223372036854775807 / (1024))
@@ -140,7 +141,7 @@ namespace we
                 throw   std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1024 * 1024 * 1024;
         }
-        else
+        else if (unit != "bt")
             throw   std::runtime_error(error_to_print("invalid argument", data));
         *reinterpret_cast<long long *>((char *)block + offset) = ret;
     }

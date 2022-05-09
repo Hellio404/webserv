@@ -121,7 +121,9 @@ namespace we
                 this->client_remaining_data.clear();
             }
             else
+            {
                 recv_ret = recv(this->client_sock, this->client_headers_buffer, this->config.client_max_header_size, 0);
+            }
 
             if (recv_ret <= 0)
                 goto close_connection;
@@ -131,10 +133,8 @@ namespace we
                 char *str = this->client_headers_buffer;
                 bool end;
                 end = client_header_parser.append(str, str + recv_ret);
-
                 if (end)
                 {
-                    // print_headers();
                     // print_headers();
                     this->expanded_url = this->req_headers["@expanded_url"]; // Extract the expanded url
                     this->client_remaining_data = std::string(str, this->client_headers_buffer + recv_ret);
@@ -142,7 +142,6 @@ namespace we
                     this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
                     this->location = this->server->get_location(this->expanded_url);
                     this->requested_resource = we::get_file_fullpath(this->location->root, this->expanded_url);
-
                     this->get_info_headers();
                     if (this->is_body_chunked || this->client_content_length > 0)
                     {
