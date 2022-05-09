@@ -32,6 +32,8 @@ namespace we
             filesize = de_chunker->get_file_size();
             if (filesize > con->location->client_max_body_size)
                 throw we::HTTPStatusException(413, "Request Entity Too Large");
+            if (ret)
+                tmpfile.close();
             return ret;
         }
         if ((end - start) + filesize + buffer_data.size() >= size_t(con->client_content_length))
@@ -40,6 +42,7 @@ namespace we
             tmpfile.write(buffer_data.c_str(), con->client_content_length - filesize);
             con->client_remaining_data = std::string(buffer_data.begin() + con->client_content_length - filesize, buffer_data.end());
             filesize = con->client_content_length;
+            tmpfile.close();
             return true;
         }
         else if (buffer_data.size() + (end - start) < buffer_size)

@@ -39,12 +39,11 @@ namespace we
         else
         {
             closedir(dir);
-
             con->response_type = Connection::ResponseType_Directory;
             con->res_headers.insert(std::make_pair("@response_code", "200"));
-            con->keep_alive = false;
         }
 
+        con->set_keep_alive(false);
         return 1;
     }
 }

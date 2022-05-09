@@ -177,6 +177,7 @@ namespace we
                     con->res_headers.insert(std::make_pair("Content-Range", "bytes */" + content_length));
                     con->res_headers.insert(std::make_pair("@response_code", "416"));
                     con->requested_resource = con->location->get_error_page(416);
+                    con->set_keep_alive(false);
                     return 1;
                 }
             }

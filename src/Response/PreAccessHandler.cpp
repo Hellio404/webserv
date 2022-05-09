@@ -10,6 +10,7 @@ namespace we
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "405"));
             con->requested_resource = con->location->get_error_page(405);
+            con->set_keep_alive(false);
             return 1;
         }
 

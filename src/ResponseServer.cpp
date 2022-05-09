@@ -405,8 +405,7 @@ namespace we
                 exit(69);
             close(fds[0]);
             close(fds[1]);
-            if (input_fd)
-                close(input_fd);
+            close(input_fd);
             this->set_environment();
             const char *argv[] = {connection->location->cgi.c_str(), connection->requested_resource.c_str(), NULL};
             execve(argv[0], (char **)argv, this->env);
@@ -437,8 +436,9 @@ namespace we
             delete this;
             con->response_type = Connection::ResponseType_File;
             con->res_headers.erase("@response_code");
-            con->res_headers.insert(std::make_pair("@response_code", "502"));
-            con->requested_resource = con->location->get_error_page(502);
+            con->res_headers.insert(std::make_pair("@response_code", "504"));
+            con->requested_resource = con->location->get_error_page(504);
+            con->set_keep_alive(false);
             con->status = Connection::Write;
             con->phase = Phase_End;
             con->metadata_set = false;
@@ -468,6 +468,7 @@ namespace we
             con->res_headers.erase("@response_code");
             con->res_headers.insert(std::make_pair("@response_code", "502"));
             con->requested_resource = con->location->get_error_page(502);
+            con->set_keep_alive(false);
             con->status = Connection::Write;
             con->phase = Phase_End;
             con->metadata_set = false;
@@ -501,14 +502,11 @@ namespace we
             kill(this->pid, SIGKILL);
             if (!ended && this->connection->to_chunk && headers_ended)
                 internal_buffer.append("0\r\n\r\n");
-            else if (!ended && check_bad_exit())
+            else if (!ended && !headers_ended && check_bad_exit())
                 return;
-            else if (!ended)
+            else if (!ended && !headers_ended)
             {
-                internal_buffer.append(header_buffer);
-                if (internal_buffer[internal_buffer.size() - 1] != '\n')
-                    internal_buffer.append("\r\n");
-                internal_buffer.append("\r\n");
+                internal_buffer = make_response_header(connection->res_headers);
                 if (this->connection->to_chunk)
                     internal_buffer.append("0\r\n\r\n");
             }
@@ -553,30 +551,29 @@ namespace we
         env_v.push_back("REDIRECT_STATUS=200");
         env_v.push_back("GATEWAY_INTERFACE=CGI/1.1");
         env_v.push_back("SERVER_SOFTWARE=BetterNginx/0.69.420");
-        env_v.push_back("SERVER_NAME=" + this->connection->req_headers["Host"]);
+        env_v.push_back("SERVER_NAME=" + this->connection->server->server_names.front());
 
         env_v.push_back("REMOTE_ADDR=" + this->connection->client_addr_str);
         env_v.push_back("SERVER_PORT=" + this->connection->server->listen_port);
         env_v.push_back("REQUEST_METHOD=" + this->connection->req_headers["@method"]);
         env_v.push_back("SERVER_PROTOCOL=" + this->connection->req_headers["@protocol"]);
 
-        env_v.push_back("PATH_INFO=" + this->connection->requested_resource);
-        env_v.push_back("PATH_TRANSLATED=" + this->connection->requested_resource);
-        env_v.push_back("SCRIPT_NAME=" + this->connection->location->cgi);
+        env_v.push_back("PATH_INFO=" + this->connection->expanded_url);
+        env_v.push_back("PATH_TRANSLATED=" + this->connection->expanded_url);
+        env_v.push_back("SCRIPT_NAME=" + this->connection->requested_resource);
+        env_v.push_back("SCRIPT_FILENAME=" + this->connection->requested_resource);
 
         if (this->connection->req_headers.find("@query") != this->connection->req_headers.end())
             env_v.push_back("QUERY_STRING=" + this->connection->req_headers["@query"]);
         if (this->connection->req_headers.find("Content-Type") != this->connection->req_headers.end())
             env_v.push_back("CONTENT_TYPE=" + this->connection->req_headers["Content-Type"]);
-        if (this->connection->req_headers.find("Content-Length") != this->connection->req_headers.end())
-            env_v.push_back("CONTENT_LENGTH=" + this->connection->req_headers["Content-Length"]);
+        if (connection->body_handler)
+            env_v.push_back("CONTENT_LENGTH=" + we::to_string(connection->body_handler->filesize));
 
         Connection::ReqHeaderMap::const_iterator it = this->connection->req_headers.begin();
         for (; it != this->connection->req_headers.end(); ++it)
         {
             if (it->first[0] == '@')
-                continue;
-            if (it->first == "Content-Type" || it->first == "Content-Length")
                 continue;
             env_v.push_back("HTTP_" + we::to_env_uppercase(it->first) + "=" + it->second);
         }

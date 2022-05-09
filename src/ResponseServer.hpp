@@ -121,9 +121,9 @@ namespace we
         const Event     *event;
         std::string     header_buffer;
 
-
         bool set_environment();
         bool check_bad_exit();
+
     public:
         void timeout();
         ResponseServerCGI(Connection *);
