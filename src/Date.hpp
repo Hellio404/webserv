@@ -5,8 +5,8 @@
 // It can generate a string representation of the date in IMF-fixdate format
 // "WDY, DD MON YYYY HH:MM:SS GMT".
 
-
 #pragma once
+
 #include <sys/time.h>
 #include <iomanip>
 #include <sstream>
@@ -16,55 +16,55 @@
 
 namespace we
 {
-  class Date
-  {
+    class Date
+    {
     private:
-      struct timeval __data;
+        struct timeval __data;
 
-      void __parse_date_str(const char *);
+        void __parse_date_str(const char *);
 
     public:
-      Date();
-      Date(size_t);
-      Date(const struct timeval *);
-      Date(const struct timeval &);
-      Date(const std::string &date_str);
-      Date(const char *date_str);
+        Date();
+        Date(size_t);
+        Date(const struct timeval *);
+        Date(const struct timeval &);
+        Date(const std::string &date_str);
+        Date(const char *date_str);
 
-      std::string get_date_str() const;
-      void set_date_str(const std::string &date_str);
-      void set_date_str(const char *date_str);
+        std::string get_date_str() const;
+        void set_date_str(const std::string &date_str);
+        void set_date_str(const char *date_str);
 
-      // operator +
-      Date operator+(size_t);
-      Date operator+(const Date &);
+        // operator +
+        Date operator+(size_t);
+        Date operator+(const Date &);
 
-      // operator +=
-      Date &operator+=(size_t);
-      Date &operator+=(const Date &);
+        // operator +=
+        Date &operator+=(size_t);
+        Date &operator+=(const Date &);
 
-      // operator ==
-      bool operator==(size_t) const;
-      bool operator==(const Date &) const;
+        // operator ==
+        bool operator==(size_t) const;
+        bool operator==(const Date &) const;
 
-      // operator !=
-      bool operator!=(size_t) const;
-      bool operator!=(const Date &) const;
+        // operator !=
+        bool operator!=(size_t) const;
+        bool operator!=(const Date &) const;
 
-      // operator <
-      bool operator<(size_t) const;
-      bool operator<(const Date &) const;
+        // operator <
+        bool operator<(size_t) const;
+        bool operator<(const Date &) const;
 
-      // operator >
-      bool operator>(size_t) const;
-      bool operator>(const Date &) const;
+        // operator >
+        bool operator>(size_t) const;
+        bool operator>(const Date &) const;
 
-      // operator <=
-      bool operator<=(size_t) const;
-      bool operator<=(const Date &) const;
+        // operator <=
+        bool operator<=(size_t) const;
+        bool operator<=(const Date &) const;
 
-      // operator >=
-      bool operator>=(size_t) const;
-      bool operator>=(const Date &) const;
-  };
+        // operator >=
+        bool operator>=(size_t) const;
+        bool operator>=(const Date &) const;
+    };
 }

@@ -35,7 +35,7 @@ namespace we
     {
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
         if (this->client_sock == -1)
-            throw std::runtime_error("accept() failed"); // TODO: try catch when creating a connection
+            throw std::runtime_error("[critical] accept() failed");
         this->client_addr_str = inet_ntoa(reinterpret_cast<struct sockaddr_in *>(&this->client_addr)->sin_addr);
         this->event_data.pointer = this;
         this->connected_socket = connected_socket;
@@ -78,13 +78,6 @@ namespace we
     unsigned long long Connection::get_connection_total()
     {
         return Connection::connection_total;
-    }
-
-    void Connection::print_headers()
-    {
-        std::map<std::string, std::string, we::LessCaseInsensitive>::const_iterator it;
-        for (it = this->req_headers.begin(); it != this->req_headers.end(); ++it)
-            std::cout << it->first << ": " << '\'' << it->second << '\'' << std::endl;
     }
 
     void Connection::get_info_headers()

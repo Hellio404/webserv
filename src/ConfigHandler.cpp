@@ -9,9 +9,9 @@ namespace we
 
     static long long atoi(const std::string &val, const directive_data &data)
     {
-        size_t      i = 0;
-        unsigned long long   ret = 0;
-        int         sign = 1;
+        size_t i = 0;
+        unsigned long long ret = 0;
+        int sign = 1;
 
         if (val[i] == '+' || val[i] == '-')
         {
@@ -19,18 +19,18 @@ namespace we
             i++;
         }
         if (i == val.size())
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         while (val[i])
         {
             if (!isdigit(val[i]))
-                throw   std::runtime_error(error_to_print("invalid argument", data));
+                throw std::runtime_error(error_to_print("invalid argument", data));
             ret = ret * 10 + val[i] - '0';
             if (ret > 9223372036854775807ULL + (sign == -1))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             i++;
         }
         if (i != val.size())
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         if (ret == 9223372036854775808ULL && (sign == -1))
             return -9223372036854775807LL - 1LL;
         return ret * sign;
@@ -38,32 +38,32 @@ namespace we
 
     static long long atou(const std::string &val, const directive_data &data)
     {
-        size_t      i = 0;
-        unsigned long long   ret = 0;
+        size_t i = 0;
+        unsigned long long ret = 0;
 
         if (val[i] == '+')
             i++;
         if (i == val.size())
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         while (val[i])
         {
             if (!isdigit(val[i]))
-                throw   std::runtime_error(error_to_print("invalid argument", data));
+                throw std::runtime_error(error_to_print("invalid argument", data));
             ret = ret * 10 + (val[i] - '0');
             if (ret > 9223372036854775807ULL)
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             i++;
         }
 
         if (i != val.size())
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         return ret;
     }
 
     static char check_validity(const std::string &val, directive_data const &data)
     {
         if (val.back() != 's' && val.back() != 'm' && val.back() != 'h' && val.back() != 'd')
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         return val.back();
     }
 
@@ -78,22 +78,22 @@ namespace we
         {
         case 's':
             if (ret > 9223372036854775807 / 1000)
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1000;
             break;
         case 'm':
             if (ret > 9223372036854775807 / (1000 * 60))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1000 * 60;
             break;
         case 'h':
             if (ret > 9223372036854775807 / (1000 * 60 * 60))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1000 * 60 * 60;
             break;
         case 'd':
             if (ret > 9223372036854775807 / (1000 * 60 * 60 * 24))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1000 * 60 * 60 * 24;
             break;
         default:
@@ -111,7 +111,7 @@ namespace we
         else if (strcasecmp(data.args[0].c_str(), "off") == 0 || strcasecmp(data.args[0].c_str(), "false") == 0)
             ret = 0;
         else
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         *reinterpret_cast<bool *>((char *)block + offset) = ret;
     }
 
@@ -119,35 +119,35 @@ namespace we
     static void set_size_directive(void *block, directive_data const &data, size_t offset)
     {
         if (data.args[0].size() < 2)
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         if (*(data.args[0].end() - 1) == 'b' && isdigit(*(data.args[0].end() - 2)))
         {
             *reinterpret_cast<long long *>((char *)block + offset) = atou(std::string(data.args[0].begin(), data.args[0].end() - 1), data);
-            return ;
+            return;
         }
         long long ret = atou(std::string(data.args[0].begin(), data.args[0].end() - 2), data);
         std::string unit = std::string(data.args[0].end() - 2, data.args[0].end());
-        
+
         if (unit == "kb")
         {
             if (ret > 9223372036854775807 / (1024))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1024;
         }
         else if (unit == "mb")
         {
             if (ret > 9223372036854775807 / (1024 * 1024))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1024 * 1024;
         }
         else if (unit == "gb")
         {
             if (ret > 9223372036854775807 / (1024 * 1024 * 1024))
-                throw   std::runtime_error(error_to_print("limit exceeded", data));
+                throw std::runtime_error(error_to_print("limit exceeded", data));
             ret *= 1024 * 1024 * 1024;
         }
         else
-            throw   std::runtime_error(error_to_print("invalid argument", data));
+            throw std::runtime_error(error_to_print("invalid argument", data));
         *reinterpret_cast<long long *>((char *)block + offset) = ret;
     }
 
@@ -202,12 +202,12 @@ namespace we
         if (it != config.server_socks.end())
         {
             server_config.listen_socket = it->second;
-            return ; // already listening on this address and port
+            return; // already listening on this address and port
         }
 
         if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
             throw std::runtime_error(std::string("socket ") + strerror(errno));
-        
+
         if (fcntl(listen_fd, F_SETFL, O_NONBLOCK) < 0)
             throw std::runtime_error(std::string("fcntl ") + strerror(errno));
 
@@ -217,7 +217,6 @@ namespace we
         if (bind(listen_fd, res->ai_addr, res->ai_addrlen) < 0)
             throw std::runtime_error(std::string("bind ") + strerror(errno));
 
-        
         if (listen(listen_fd, 1024) < 0)
             throw std::runtime_error(std::string("listen ") + strerror(errno));
 
@@ -276,8 +275,12 @@ namespace we
 
     static void handle_use_events(Config &config, directive_data const &data)
     {
-        static const char * mapped_multiplex[] = {
-            "none", "select", "kqueue", "poll", "epoll",
+        static const char *mapped_multiplex[] = {
+            "none",
+            "select",
+            "kqueue",
+            "poll",
+            "epoll",
         };
 
         if (data.args.size() != 1)
@@ -288,7 +291,7 @@ namespace we
             if (data.args[0] == mapped_multiplex[i])
             {
                 config.multiplex_type = (Config::MultiplexingType)(i);
-                return ;
+                return;
             }
         }
 
@@ -307,7 +310,6 @@ namespace we
             else if (path.size() && path[path.size() - 1] == '/' && dd_it->args.back()[0] == '/')
                 path.erase(path.size() - 1);
             path += dd_it->args.back();
-
 
             for (size_t i = 0; i < dd_it->args.size() - 1; i++)
             {
@@ -361,14 +363,14 @@ namespace we
         return ret;
     }
 
-    void    init_root_directives(Config &config, directive_block *root)
+    void init_root_directives(Config &config, directive_block *root)
     {
         static const directive_dispatch dispatcher[] = {
-            { "use_events", NULL, 0 },
-            { "default_type", &we::set_string_directive, OFFSET_OF(Config, default_type) },
-            { "client_header_timeout", &we::set_time_directive, OFFSET_OF(Config, client_header_timeout) },
-            { "client_max_header_size", &we::set_size_directive, OFFSET_OF(Config, client_max_header_size) },
-            { "client_header_buffer_size", &we::set_size_directive, OFFSET_OF(Config, client_header_buffer_size) },
+            {"use_events", NULL, 0},
+            {"default_type", &we::set_string_directive, OFFSET_OF(Config, default_type)},
+            {"client_header_timeout", &we::set_time_directive, OFFSET_OF(Config, client_header_timeout)},
+            {"client_max_header_size", &we::set_size_directive, OFFSET_OF(Config, client_max_header_size)},
+            {"client_header_buffer_size", &we::set_size_directive, OFFSET_OF(Config, client_header_buffer_size)},
         };
 
         for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
@@ -388,13 +390,13 @@ namespace we
         }
     }
 
-    void    init_server_directives(Config &config, ServerBlock &server_config, directive_block *root, directive_block *server)
+    void init_server_directives(Config &config, ServerBlock &server_config, directive_block *root, directive_block *server)
     {
         static const directive_dispatch dispatcher[] = {
-            { "listen", NULL, 0 },
-            { "server_name", NULL, 0 },
-            { "server_send_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, server_send_timeout) },
-            { "server_body_buffer_size", &we::set_size_directive, OFFSET_OF(ServerBlock, server_body_buffer_size) },
+            {"listen", NULL, 0},
+            {"server_name", NULL, 0},
+            {"server_send_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, server_send_timeout)},
+            {"server_body_buffer_size", &we::set_size_directive, OFFSET_OF(ServerBlock, server_body_buffer_size)},
         };
 
         for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
@@ -423,9 +425,9 @@ namespace we
         }
     }
 
-    void    handle_add_header(LocationBlock &location_config, std::vector<directive_data> *data)
+    void handle_add_header(LocationBlock &location_config, std::vector<directive_data> *data)
     {
-        std::vector<directive_data>::const_iterator   it = data->begin();
+        std::vector<directive_data>::const_iterator it = data->begin();
 
         for (; it != data->end(); ++it)
         {
@@ -433,23 +435,23 @@ namespace we
         }
     }
 
-    void    init_location_directives(LocationBlock &location_config, directive_block *root, directive_block *server, directive_block *location)
+    void init_location_directives(LocationBlock &location_config, directive_block *root, directive_block *server, directive_block *location)
     {
         static const directive_dispatch dispatcher[] = {
-            { "root", &we::set_string_directive, OFFSET_OF(LocationBlock, root) },
-            { "index", NULL, 0 },
-            { "error_page", NULL, 0 },
-            { "autoindex", &we::set_boolean_directive, OFFSET_OF(LocationBlock, autoindex) },
-            { "allow_upload", &we::set_boolean_directive, OFFSET_OF(LocationBlock, allow_upload) },
-            { "upload_dir", &we::set_string_directive, OFFSET_OF(LocationBlock, upload_dir) },
-            { "allowed_methods", NULL, 0 },
-            { "denied_methods", NULL, 0 },
-            { "client_body_timeout", &we::set_time_directive, OFFSET_OF(LocationBlock, client_body_timeout) },
-            { "client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size) },
-            { "client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size) },
-            { "cgi_pass", &we::set_string_directive, OFFSET_OF(LocationBlock, cgi) },
-            { "add_header", NULL , 0 },
-            { "return", NULL , 0 },
+            {"root", &we::set_string_directive, OFFSET_OF(LocationBlock, root)},
+            {"index", NULL, 0},
+            {"error_page", NULL, 0},
+            {"autoindex", &we::set_boolean_directive, OFFSET_OF(LocationBlock, autoindex)},
+            {"allow_upload", &we::set_boolean_directive, OFFSET_OF(LocationBlock, allow_upload)},
+            {"upload_dir", &we::set_string_directive, OFFSET_OF(LocationBlock, upload_dir)},
+            {"allowed_methods", NULL, 0},
+            {"denied_methods", NULL, 0},
+            {"client_body_timeout", &we::set_time_directive, OFFSET_OF(LocationBlock, client_body_timeout)},
+            {"client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size)},
+            {"client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size)},
+            {"cgi_pass", &we::set_string_directive, OFFSET_OF(LocationBlock, cgi)},
+            {"add_header", NULL, 0},
+            {"return", NULL, 0},
         };
 
         for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
@@ -478,7 +480,6 @@ namespace we
                 dispatcher[i].func(&location_config, data.back(), dispatcher[i].offset);
         }
 
-
         location_config.handlers[Phase_Reserved_1].push_back(&we::pre_access_handler);
         location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
 
@@ -506,60 +507,5 @@ namespace we
 
         // Logging handlers
         location_config.handlers[Phase_Logging].push_back(&we::logger_handler);
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Debugging functions
-    ///////////////////////////////////////////////////////////////////////////
-
-    static void print_location_block_info(const LocationBlock & val)
-    {
-        std::cout << "\t\tLocation : " << std::endl;
-        std::cout << "\t\t\tPattern : " << val.pattern << std::endl;
-        std::cout << "\t\t\tClient body timeout : " << val.client_body_timeout << std::endl;
-        std::cout << "\t\t\tClient body buffer size : " << val.client_body_buffer_size << std::endl;
-        std::cout << "\t\t\tClient max body size : " << val.client_max_body_size << std::endl;
-        std::cout << "\t\t\tIndex :";
-        for (size_t i = 0; i < val.index.size(); i++)
-            std::cout << " " << val.index[i];
-        std::cout << std::endl;
-        std::cout << "\t\t\tRoot : " << val.root << std::endl;
-        std::cout << "\t\t\tAutoindex : " << (val.autoindex ? "true" : "false") << std::endl;
-        std::cout << "\t\t\tAllow upload : " << (val.allow_upload ? "true" : "false") << std::endl;
-        std::cout << "\t\t\tAllow dir : " << val.upload_dir << std::endl;
-    }
-
-    static void print_server_block_info(const ServerBlock & val)
-    {
-        std::cout << "\tserver : " << std::endl;
-        std::cout << "\t\tlisten_socket : " << val.listen_socket << std::endl;
-        std::cout << "\t\tserver_name :";
-        for (size_t i = 0; i < val.server_names.size(); i++)
-            std::cout << " " << val.server_names[i];
-        std::cout << std::endl;
-        std::cout << "\t\tserver_send_timeout : " << val.server_send_timeout << std::endl;
-        std::cout << "\t\tserver_body_buffer_size : " << val.server_body_buffer_size << std::endl;
-        for (size_t i = 0; i < val.locations.size(); i++)
-            print_location_block_info(val.locations[i]);
-    }
-
-    void    print_config_block_info(const Config & val)
-    {
-        static const char * mapped_multiplex[] = {
-            "none", "select", "kqueue", "poll", "epoll",
-        };
-        std::cout << "config : " << std::endl;
-        std::cout << "\tmultiplex_type : " << mapped_multiplex[val.multiplex_type] << std::endl;
-        std::cout << "\tclient_header_timeout : " << val.client_header_timeout << std::endl;
-        std::cout << "\tclient_header_buffer_size : " << val.client_header_buffer_size << std::endl;
-        std::cout << "\tclient_max_header_size : " << val.client_max_header_size << std::endl;
-        Config::server_block_const_iterator it = val.server_blocks.begin();
-        while (it != val.server_blocks.end())
-        {
-            std::cout << "\t-----------------" << std::endl;
-            for (size_t i = 0; i < it->second.size(); i++)
-                print_server_block_info(it->second[i]);
-            ++it;
-        }
     }
 }

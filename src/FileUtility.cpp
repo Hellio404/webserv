@@ -2,7 +2,7 @@
 
 namespace we
 {
-    FileStatus::Type    check_file_validity(const std::string &file_path)
+    FileStatus::Type check_file_validity(const std::string &file_path)
     {
         struct stat file_stat;
 
@@ -19,15 +19,13 @@ namespace we
             return FileStatus::FILE_NOT_REGULAR;
 
         // check if it is readable by the current user (or globally)
-        if (!(file_stat.st_mode & S_IRUSR)
-            && !(file_stat.st_mode & S_IRGRP)
-            && !(file_stat.st_mode & S_IROTH))
+        if (!(file_stat.st_mode & S_IRUSR) && !(file_stat.st_mode & S_IRGRP) && !(file_stat.st_mode & S_IROTH))
             return FileStatus::FILE_NOT_READABLE;
 
         return FileStatus::FILE_OK;
     }
 
-    bool        check_path_by_location(const std::string &path, const LocationBlock &location)
+    bool check_path_by_location(const std::string &path, const LocationBlock &location)
     {
         if (strncasecmp(path.c_str(), location.pattern.c_str(), location.pattern.size()) == 0)
             return true;

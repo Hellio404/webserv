@@ -2,7 +2,7 @@
 
 namespace we
 {
-    Logger::Logger(): isAccessLogOpen(false), isErrorLogOpen(false)
+    Logger::Logger() : isAccessLogOpen(false), isErrorLogOpen(false)
     {
     }
 

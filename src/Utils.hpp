@@ -49,11 +49,6 @@ namespace we
     std::string                 to_hex(size_t);
     std::string                 to_env_uppercase(const std::string &);
 
-    void                        start_recording(unsigned char, const char *);
-    void                        stop_recording(unsigned char);
-
-    void                        print_ids_time();
-
     std::string                 get_status_string(unsigned int);
     std::string                 get_default_page_code(unsigned int);
 
@@ -79,5 +74,4 @@ namespace we
 
     void                        insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &, std::string const &, std::string const &);
     void                        mkdir_recursive(const char *);
-
 }

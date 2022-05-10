@@ -271,10 +271,8 @@ namespace we
             throw std::runtime_error("Cannot open " + this->dir_path);
 
         this->response_buffer = "<!doctype html><html><head>"
-                                "<title>Index of " +
-                                this->location + "</title></head>"
-                                                 "<h1>Index of " +
-                                this->location + "</h1><hr><pre>";
+                                "<title>Index of " + this->location + "</title></head>"
+                                "<h1>Index of " + this->location + "</h1><hr><pre>";
         do
         {
             if ((dp = readdir(dir)) == NULL)

@@ -18,6 +18,7 @@ namespace we
     class ResponseServer
     {
         ResponseServer();
+
     protected:
         ssize_t         last_read_bytes;
         ssize_t         buffer_offset;
@@ -28,6 +29,7 @@ namespace we
         std::string     internal_buffer;
         Connection      *connection;
         char *          _buffer;
+
     public:
         typedef std::multimap<std::string, std::string, LessCaseInsensitive>    HeaderMap;
         
@@ -42,8 +44,6 @@ namespace we
         virtual             ~ResponseServer();
     };
 
-    //................................................\\/
-
     class ResponseServerFile : public ResponseServer
     {
         std::ifstream   file;
@@ -54,8 +54,6 @@ namespace we
         void    load_next_data(std::string &);
         ~ResponseServerFile();
     };
-
-    //................................................\\/
 
     class ResponseServerDirectory : public ResponseServer
     {
@@ -73,8 +71,6 @@ namespace we
         void    load_next_data(std::string &);
         ~ResponseServerDirectory();
     };
-
-    //................................................\\/
 
     class ResponseServerFileMultiRange : public ResponseServer
     {
@@ -105,8 +101,6 @@ namespace we
         void    load_next_data(std::string &);
         ~ResponseServerFileSingleRange();
     };
-
-    //................................................\\/
 
     class ResponseServerCGI : public ResponseServer, public BaseConnection
     {

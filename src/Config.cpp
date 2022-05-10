@@ -1,7 +1,9 @@
 #include "Config.hpp"
 #include <unistd.h>
 #include <set>
-# define MAX_BUFFER_SIZE (1024 * 1024 * 128)
+
+#define MAX_BUFFER_SIZE (1024 * 1024 * 128)
+
 namespace we
 {
     Config::Config()
@@ -15,7 +17,7 @@ namespace we
         this->default_type = "application/octet-stream";
     }
 
-    const ServerBlock   *Config::get_server_block(int socket, const std::string &host) const
+    const ServerBlock *Config::get_server_block(int socket, const std::string &host) const
     {
         Config::server_block_const_iterator pos = this->server_blocks.find(socket);
 
@@ -33,7 +35,7 @@ namespace we
         return &pos->second.front();
     }
 
-    std::string         Config::get_mime_type(const std::string &filepath) const
+    std::string Config::get_mime_type(const std::string &filepath) const
     {
         std::string::size_type pos = filepath.rfind('.');
 
@@ -56,7 +58,7 @@ namespace we
         this->server_body_buffer_size = 2 * 1024 * 1024;
     }
 
-    const LocationBlock *ServerBlock::get_location(const std::string& uri) const
+    const LocationBlock *ServerBlock::get_location(const std::string &uri) const
     {
         std::vector<LocationBlock>::const_iterator it = this->locations.begin();
         const LocationBlock *regex = NULL;
@@ -66,24 +68,24 @@ namespace we
         {
             switch (it->modifier)
             {
-                case LocationBlock::Modifier_none:
-                    if (!regex && std::strncmp(it->pattern.c_str(), uri.c_str(), it->pattern.size()) == 0)
-                    {
-                        if (!normal || it->pattern.size() > normal->pattern.size())
-                            normal = &(*it);
-                    }
-                    break;
-                case LocationBlock::Modifier_exact:
-                    if (it->pattern == uri)
-                        return &(*it);
-                    break;
-                case LocationBlock::Modifier_regex:
-                case LocationBlock::Modifier_regex_icase:
-                    if (!regex && it->regex->test(uri))
-                        regex = &(*it);
-                    break;
-                default:
-                    break;
+            case LocationBlock::Modifier_none:
+                if (!regex && std::strncmp(it->pattern.c_str(), uri.c_str(), it->pattern.size()) == 0)
+                {
+                    if (!normal || it->pattern.size() > normal->pattern.size())
+                        normal = &(*it);
+                }
+                break;
+            case LocationBlock::Modifier_exact:
+                if (it->pattern == uri)
+                    return &(*it);
+                break;
+            case LocationBlock::Modifier_regex:
+            case LocationBlock::Modifier_regex_icase:
+                if (!regex && it->regex->test(uri))
+                    regex = &(*it);
+                break;
+            default:
+                break;
             }
         }
         if (regex)
@@ -160,7 +162,7 @@ namespace we
         return "";
     }
 
-    bool    LocationBlock::is_allowed_method(std::string method) const
+    bool LocationBlock::is_allowed_method(std::string method) const
     {
         if (method == "GET")
             return this->allowed_methods.get >= allowed_method_found;
@@ -176,7 +178,7 @@ namespace we
             return false;
     }
 
-    void    init_config()
+    void init_config()
     {
         // General directives
         we::register_directive("include", 1, 0, false, true, true, true, true);
@@ -197,7 +199,7 @@ namespace we
         we::register_directive("server_send_timeout", 1, 0, false, false, true, true, false);
         we::register_directive("server_body_buffer_size", 1, 0, false, false, true, true, false);
         we::register_directive("add_header", 2, 0, false, true, true, true, true);
-        
+
         // Location level directives
         we::register_directive("root", 1, 0, false, false, true, true, true);
         we::register_directive("index", 1, -1, false, false, true, true, true);
@@ -250,7 +252,6 @@ namespace we
                 throw std::runtime_error("client_max_body_size must be greater than 0");
             if (lb_it->client_body_buffer_size <= 0 || lb_it->client_body_buffer_size > MAX_BUFFER_SIZE)
                 throw std::runtime_error("client_body_buffer_size invalid size for the buffer");
-            
 
             std::pair<std::string, LocationBlock::Modifier> location = std::make_pair(lb_it->pattern, lb_it->modifier);
             if (locations.count(location))
@@ -271,7 +272,7 @@ namespace we
             throw std::runtime_error("server_body_buffer_size invalid size for the buffer");
     }
 
-    bool    load_config(const std::string &file_name, Config &config)
+    bool load_config(const std::string &file_name, Config &config)
     {
         we::Parser parser(file_name);
 
@@ -325,7 +326,7 @@ namespace we
                         location_config.modifier = LocationBlock::Modifier_exact;
                     else if (location_block->args[0] == "~" || location_block->args[0] == "~*")
                     {
-                        location_config.modifier = location_block->args[0] == "~*" ? LocationBlock::Modifier_regex_icase: LocationBlock::Modifier_regex;
+                        location_config.modifier = location_block->args[0] == "~*" ? LocationBlock::Modifier_regex_icase : LocationBlock::Modifier_regex;
                         int flags = location_block->args[0] == "~*" ? ft::Regex::iCase : 0;
                         try
                         {
@@ -335,7 +336,6 @@ namespace we
                         {
                             throw std::runtime_error("Invalid regex pattern in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
                         }
-                        
                     }
                     else
                         throw std::runtime_error("Invalid pattern modifier in the directive 'location' at " + location_block->path + ":" + std::to_string(location_block->line));
@@ -351,7 +351,7 @@ namespace we
             }
             else if (it->name == "types")
             {
-                std::map <std::string,  std::vector<directive_data> >::iterator it2 = it->directives.begin();
+                std::map<std::string, std::vector<directive_data> >::iterator it2 = it->directives.begin();
                 for (; it2 != it->directives.end(); ++it2)
                 {
                     std::vector<directive_data>::iterator it3 = it2->second.begin();
@@ -361,9 +361,9 @@ namespace we
                         for (; it4 != it3->args.end(); ++it4)
                         {
                             if (config.mime_types.count(*it4))
-                                throw std::runtime_error("Redefinition of the type of the extention " + *it4 +" at "+ it3->path + ":" + std::to_string(it3->line));
+                                throw std::runtime_error("Redefinition of the type of the extention " + *it4 + " at " + it3->path + ":" + std::to_string(it3->line));
 
-                           config.mime_types[*it4] = it2->first;
+                            config.mime_types[*it4] = it2->first;
                         }
                     }
                 }

@@ -168,10 +168,10 @@ namespace we
             skip_to_crlf = true;
     }
 
-    size_t  ChunckReader::get_file_size() const
+    size_t ChunckReader::get_file_size() const
     {
         return this->file_size;
     }
 
     ChunckReader::~ChunckReader() {}
-} // namespace we
+}

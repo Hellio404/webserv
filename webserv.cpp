@@ -13,7 +13,10 @@ static void check_necessary_configuration()
 
     dir = opendir("./tmp");
     if (dir == NULL)
-        throw std::runtime_error("No such directory: ./tmp");
+    {
+        if (mkdir("./tmp", 0755) < 0)
+            throw std::runtime_error("mkdir: failed to create 'tmp' directory");
+    }
     closedir(dir);
 }
 
@@ -86,4 +89,3 @@ int main(int ac, char **av)
         return 1;
     }
 }
-// TODO change message tmp
