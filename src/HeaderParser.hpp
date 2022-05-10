@@ -65,7 +65,7 @@ namespace we
                     this->req_size += data - start;
                     start = data;
                     if (this->max_header_size != -1 && this->req_size > this->max_header_size)
-                        throw we::HTTPStatusException(414, "");
+                        throw we::HTTPStatusException(414, "Request-URI Too Large");
                     this->handle_request_line();
 
                     m_state = State_Header;
@@ -89,7 +89,7 @@ namespace we
             if (this->max_header_size != -1 && this->req_size > this->max_header_size)
             {
                 if (this->m_state == State_Request_Line)
-                    throw we::HTTPStatusException(414, "");
+                    throw we::HTTPStatusException(414, "Request-URI Too Large");
                 else
                     throw we::HTTPStatusException(400, "Request Header Or Cookie Too Large");
             }
@@ -122,11 +122,11 @@ namespace we
             while (it != this->buffer.end() && *it != ' ' && *it != '\t')
             {
                 if (!isupper(*it))
-                    throw we::HTTPStatusException(400, "");
+                    throw we::HTTPStatusException(400, "Invalid Request Line");
                 method.push_back(*it++);
             }
             if (!we::is_method_supported(method))
-                throw we::HTTPStatusException(501, "");
+                throw we::HTTPStatusException(501, "Method \"" + method + "\" Not Implemented");
             while ((*it == ' ' || *it == '\t'))
                 ++it;
             const char *http_full_url = "http://";
@@ -139,7 +139,7 @@ namespace we
             }
 
             if (*it != '/')
-                throw we::HTTPStatusException(400, "");
+                throw we::HTTPStatusException(400, "Invalid Request Line");
 
             while (it != this->buffer.end() && *it != ' ' && *it != '\t' && *it != '\r' && *it != '\n')
                 uri.push_back(*it++);
@@ -147,16 +147,16 @@ namespace we
                 ++it;
             const char *protocol = "HTTP/";
             if (!std::equal(protocol, protocol + 5, it))
-                throw we::HTTPStatusException(400, "");
+                throw we::HTTPStatusException(400, "Invalid Protocol");
             it += 5;
             if (it[0] != '1' || it[1] != '.' || !(it[2] == '1' || it[2] == '0'))
-                throw we::HTTPStatusException(505, "");
+                throw we::HTTPStatusException(505, "HTTP Version Not Supported");
             it += 3;
             insert_or_assign(*this->headers, "@protocol", std::string(it - 8, it));
             while ((*it == ' ' || *it == '\t'))
                 ++it;
             if (!IS_EOL(it))
-                throw we::HTTPStatusException(400, "");
+                throw we::HTTPStatusException(400, "Invalid Request Line");
             this->buffer.clear();
             insert_or_assign(*this->headers, "@method", method);
             insert_or_assign(*this->headers, "@path", uri);
@@ -196,7 +196,7 @@ namespace we
             insert_or_assign(*this->headers, header_name, std::string(start_value, end_last_non_ws));
         end_header:
             if (!this->skip_checks && strcasecmp(header_name.c_str(), "host") == 0 && this->headers->find(header_name)->second.empty())
-                throw we::HTTPStatusException(400, "");
+                throw we::HTTPStatusException(400, "Invalid Host Header");
             this->buffer.clear();
         }
 
@@ -238,7 +238,7 @@ namespace we
                     if (stack.empty() == false)
                         stack.pop_back();
                     else
-                        throw we::HTTPStatusException(400, "");
+                        throw we::HTTPStatusException(400, "Invalid URL");
                     it += 3;
                     continue;
                 }

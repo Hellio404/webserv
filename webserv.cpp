@@ -2,6 +2,7 @@
 #include "src/Connection.hpp"
 #include "src/EventLoop.hpp"
 #include "src/Config.hpp"
+#include "src/Logger.hpp"
 #include "src/Utils.hpp"
 #include "src/Date.hpp"
 #include <Regex.hpp>
@@ -17,7 +18,20 @@ static void check_necessary_configuration()
         if (mkdir("./tmp", 0755) < 0)
             throw std::runtime_error("mkdir: failed to create 'tmp' directory");
     }
-    closedir(dir);
+    else
+        closedir(dir);
+
+    dir = opendir("./log");
+    if (dir == NULL)
+    {
+        if (mkdir("./log", 0755) < 0)
+            throw std::runtime_error("mkdir: failed to create 'log' directory");
+    }
+    else
+        closedir(dir);
+
+    we::Logger::get_instance().setAccessLog("./log/access.log");
+    we::Logger::get_instance().setErrorLog("./log/error.log");
 }
 
 int main(int ac, char **av)
@@ -86,6 +100,7 @@ int main(int ac, char **av)
             delete multiplexer;
 
         std::cerr << e.what() << std::endl;
+        we::Logger::get_instance().error(NULL, "critical", e.what());
         return 1;
     }
 }
