@@ -561,7 +561,7 @@ namespace we
 
         env_v.push_back("PATH_INFO=" + this->connection->expanded_url);
         env_v.push_back("PATH_TRANSLATED=" + this->connection->expanded_url);
-        env_v.push_back("SCRIPT_NAME=" + this->connection->requested_resource);
+        env_v.push_back("SCRIPT_NAME=");
         env_v.push_back("SCRIPT_FILENAME=" + this->connection->requested_resource);
 
         if (this->connection->req_headers.find("@query") != this->connection->req_headers.end())
