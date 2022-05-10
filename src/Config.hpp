@@ -76,7 +76,6 @@ namespace we
         Modifier                                            modifier;
         ft::Regex                                           *regex;
         long long                                           client_body_timeout;
-        bool                                                client_body_in_file;
         size_t                                              client_body_buffer_size;
         size_t                                              client_max_body_size;
 
@@ -118,12 +117,6 @@ namespace we
 
         long long                               server_send_timeout;
         long long                               server_body_buffer_size;
-
-        bool                                    keep_alive;
-        long long                               keep_alive_timeout;
-
-        bool                                    enable_lingering_close;
-        long long                               lingering_close_timeout;
 
         std::vector<LocationBlock>              locations;
 

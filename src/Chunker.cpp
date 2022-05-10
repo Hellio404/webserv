@@ -13,6 +13,7 @@ namespace we
         skip_to_crlf = false;
         skip_to_lf = false;
         file_size = 0;
+        next_chunk_size = 0;
     }
 
     bool ChunckReader::add_to_chunk(const char *&buffer, const char *end)

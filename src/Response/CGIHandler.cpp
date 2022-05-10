@@ -20,6 +20,7 @@ namespace we
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "404"));
             con->requested_resource = con->location->get_error_page(404);
+            con->set_keep_alive(false);
             return 1;
         }
 
@@ -29,12 +30,14 @@ namespace we
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "403"));
             con->requested_resource = con->location->get_error_page(403);
+            con->set_keep_alive(false);
         }
         else if (fd == -1)
         {
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "404"));
             con->requested_resource = con->location->get_error_page(404);
+            con->set_keep_alive(false);
         }
         else
         {

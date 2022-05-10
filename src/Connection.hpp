@@ -18,6 +18,7 @@
 #include <istream>
 #include <ostream>
 #include <vector>
+
 namespace we
 {
     class ResponseServer;
@@ -27,8 +28,6 @@ namespace we
     class LocationBlock;
     class BodyHandler;
 
-   
-
     class Connection: public BaseConnection
     {
     private:
@@ -36,8 +35,8 @@ namespace we
 
         static ull connection_count;
         static ull connection_total;
-    public:
 
+    public:
         typedef std::map<std::string, std::string, LessCaseInsensitive>             ReqHeaderMap;
         typedef std::multimap<std::string, std::string, LessCaseInsensitive>        RespHeaderMap;
 
@@ -125,6 +124,8 @@ namespace we
         void        timeout();
         static ull  get_connection_count();
         static ull  get_connection_total();
+
+        void        set_keep_alive(bool);
     
     private:
 

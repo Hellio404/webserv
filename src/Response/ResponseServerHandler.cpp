@@ -29,7 +29,7 @@ namespace we
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "500"));
             con->requested_resource = con->location->get_error_page(500);
-
+            con->set_keep_alive(false);
             con->response_server = new we::ResponseServerFile(con);
         }
 

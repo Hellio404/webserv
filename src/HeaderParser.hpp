@@ -40,9 +40,10 @@ namespace we
         {
             _Iterator start = data;
             _Iterator new_line;
+
             while ((new_line = std::find(data, end, '\n')) != end)
             {
-                if (m_state != State_Start && IS_EOL(data) && this->buffer.empty())
+                if (m_state != State_Start && IS_EOL(data) && (this->buffer.empty() || this->buffer == "\r"))
                 {
                     data = new_line + 1;
                     this->end = true;

@@ -4,7 +4,7 @@ namespace we
 {
     static std::string error_to_print(const std::string &val, const directive_data &data)
     {
-        return val + " at " + data.path + " line " + std::to_string(data.line) + ":" + std::to_string(data.column);
+        return val + " at " + data.path + ":" + std::to_string(data.line) + ":" + std::to_string(data.column);
     }
 
     static long long atoi(const std::string &val, const directive_data &data)
@@ -120,8 +120,14 @@ namespace we
     {
         if (data.args[0].size() < 2)
             throw   std::runtime_error(error_to_print("invalid argument", data));
+        if (*(data.args[0].end() - 1) == 'b' && isdigit(*(data.args[0].end() - 2)))
+        {
+            *reinterpret_cast<long long *>((char *)block + offset) = atou(std::string(data.args[0].begin(), data.args[0].end() - 1), data);
+            return ;
+        }
         long long ret = atou(std::string(data.args[0].begin(), data.args[0].end() - 2), data);
         std::string unit = std::string(data.args[0].end() - 2, data.args[0].end());
+        
         if (unit == "kb")
         {
             if (ret > 9223372036854775807 / (1024))
@@ -389,10 +395,6 @@ namespace we
             { "server_name", NULL, 0 },
             { "server_send_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, server_send_timeout) },
             { "server_body_buffer_size", &we::set_size_directive, OFFSET_OF(ServerBlock, server_body_buffer_size) },
-            { "keep_alive", &we::set_boolean_directive, OFFSET_OF(ServerBlock, keep_alive) },
-            { "keep_alive_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, keep_alive_timeout) },
-            { "enable_lingering_close", &we::set_boolean_directive, OFFSET_OF(ServerBlock, enable_lingering_close) },
-            { "lingering_close_timeout", &we::set_time_directive, OFFSET_OF(ServerBlock, lingering_close_timeout) },
         };
 
         for (size_t i = 0; i < sizeof(dispatcher) / sizeof(dispatcher[0]); i++)
@@ -443,7 +445,6 @@ namespace we
             { "allowed_methods", NULL, 0 },
             { "denied_methods", NULL, 0 },
             { "client_body_timeout", &we::set_time_directive, OFFSET_OF(LocationBlock, client_body_timeout) },
-            { "client_body_in_file", &we::set_boolean_directive, OFFSET_OF(LocationBlock, client_body_in_file) },
             { "client_body_buffer_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_body_buffer_size) },
             { "client_max_body_size", &we::set_size_directive, OFFSET_OF(LocationBlock, client_max_body_size) },
             { "cgi_pass", &we::set_string_directive, OFFSET_OF(LocationBlock, cgi) },
@@ -461,37 +462,37 @@ namespace we
             if (dispatcher[i].func == NULL)
             {
                 if (strncmp(dispatcher[i].name, "index", 5) == 0)
-                    location_config.index = data.front().args;
+                    location_config.index = data.back().args;
                 else if (strncmp(dispatcher[i].name, "error_page", 10) == 0)
                     handle_error_page(location_config, &data);
                 else if (strncmp(dispatcher[i].name, "allowed_methods", 15) == 0)
-                    handle_location_methods(location_config, data.front(), false);
+                    handle_location_methods(location_config, data.back(), false);
                 else if (strncmp(dispatcher[i].name, "denied_methods", 13) == 0)
-                    handle_location_methods(location_config, data.front(), true);
+                    handle_location_methods(location_config, data.back(), true);
                 else if (strncmp(dispatcher[i].name, "add_header", 9) == 0)
                     handle_add_header(location_config, &data);
                 else if (strncmp(dispatcher[i].name, "return", 6) == 0)
-                    handle_return(location_config, data.front());
+                    handle_return(location_config, data.back());
             }
             else
-                dispatcher[i].func(&location_config, data.front(), dispatcher[i].offset);
+                dispatcher[i].func(&location_config, data.back(), dispatcher[i].offset);
         }
 
 
         location_config.handlers[Phase_Reserved_1].push_back(&we::pre_access_handler);
         location_config.handlers[Phase_Reserved_2].push_back(&we::redirect_handler);
-        location_config.handlers[Phase_Access].push_back(&we::index_handler);
 
+        location_config.handlers[Phase_Access].push_back(&we::index_handler);
         location_config.handlers[Phase_Access].push_back(&we::autoindex_handler);
 
-        // Upload related handlers
-        location_config.handlers[Phase_Access].push_back(&we::upload_handler);
+        location_config.handlers[Phase_Access].push_back(&we::conditional_handler);
 
         // CGI related handlers
         location_config.handlers[Phase_Access].push_back(&we::cgi_handler);
 
+        // Upload related handlers
+        location_config.handlers[Phase_Access].push_back(&we::upload_handler);
         // File related handlers
-        location_config.handlers[Phase_Access].push_back(&we::conditional_handler);
         location_config.handlers[Phase_Access].push_back(&we::file_handler);
 
         // Error handlers
@@ -516,7 +517,6 @@ namespace we
         std::cout << "\t\tLocation : " << std::endl;
         std::cout << "\t\t\tPattern : " << val.pattern << std::endl;
         std::cout << "\t\t\tClient body timeout : " << val.client_body_timeout << std::endl;
-        std::cout << "\t\t\tClient body in file : " << val.client_body_in_file << std::endl;
         std::cout << "\t\t\tClient body buffer size : " << val.client_body_buffer_size << std::endl;
         std::cout << "\t\t\tClient max body size : " << val.client_max_body_size << std::endl;
         std::cout << "\t\t\tIndex :";

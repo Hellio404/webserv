@@ -1,4 +1,5 @@
 #include "Utils.hpp"
+#include <sys/stat.h>
 
 namespace we
 {
@@ -9,10 +10,10 @@ namespace we
     }
     static clock_t start[256];
     static float ids_time[256] = {0};
-    static const char* id_names[256] = {0};
+    static const char *id_names[256] = {0};
     static int counter[256] = {0};
 
-    void                        start_recording(unsigned char id, const char *name)
+    void start_recording(unsigned char id, const char *name)
     {
         start[id] = clock();
         if (id_names[id] == 0)
@@ -20,13 +21,13 @@ namespace we
         counter[id]++;
     }
 
-    void                        stop_recording(unsigned char id)
+    void stop_recording(unsigned char id)
     {
-        ids_time[id] += (clock() - start[id]) / (float)(CLOCKS_PER_SEC/1000);
+        ids_time[id] += (clock() - start[id]) / (float)(CLOCKS_PER_SEC / 1000);
     }
 
     // TODO: clear debugging functions
-    void                        print_ids_time()
+    void print_ids_time()
     {
         for (int i = 0; i < 256; i++)
         {
@@ -232,19 +233,19 @@ namespace we
     std::string get_default_page_code(unsigned int status_code)
     {
         const char *status_str = "<html>\n"
-                                "<head><title>%1$d %2$s</title></head>\n"
-                                "<body>\n"
-                                "<center><h1>%1$d %2$s</h1></center>\n"
-                                "<hr><center>BetterNginx/0.69.420 (HEAVEN)</center>\n"
-                                "</body>\n"
-                                "</html>\n";
+                                 "<head><title>%1$d %2$s</title></head>\n"
+                                 "<body>\n"
+                                 "<center><h1>%1$d %2$s</h1></center>\n"
+                                 "<hr><center>BetterNginx/0.69.420 (HEAVEN)</center>\n"
+                                 "</body>\n"
+                                 "</html>\n";
 
         char buffer[2048];
         sprintf(buffer, status_str, status_code, get_status_string(status_code).c_str());
         return std::string(buffer);
     }
 
-    std::string capitalize_header(const std::string  & original)
+    std::string capitalize_header(const std::string &original)
     {
         if (original.size() == 0)
             return original;
@@ -262,7 +263,7 @@ namespace we
 
     size_t get_next_boundry()
     {
-        size_t  static  current = 0;
+        size_t static current = 0;
 
         return ++current;
     }
@@ -285,7 +286,7 @@ namespace we
         return range_header;
     }
 
-    size_t                      number_len(size_t s)
+    size_t number_len(size_t s)
     {
         size_t len = 1;
 
@@ -297,7 +298,7 @@ namespace we
         return len;
     }
 
-    bool                        is_bodiless_response(unsigned int status_code)
+    bool is_bodiless_response(unsigned int status_code)
     {
         switch (status_code)
         {
@@ -317,16 +318,56 @@ namespace we
         return std::tolower(a) == std::tolower(b);
     }
 
-
-    void insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive>  &map, std::string const &key, std::string const &value)
+    void insert_or_assign(std::map<std::string, std::string, LessCaseInsensitive> &map, std::string const &key, std::string const &value)
     {
         map[key] = value;
     }
 
-    void insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive>  &map, std::string const &key, std::string const &value)
+    void insert_or_assign(std::multimap<std::string, std::string, LessCaseInsensitive> &map, std::string const &key, std::string const &value)
     {
         map.insert(std::make_pair(key, value));
     }
 
+    void mkdir_recursive(const char *dir)
+    {
+        char tmp[256];
+        char *p = NULL;
+        struct stat sb;
+        size_t len;
 
+        len = strnlen(dir, 256);
+        if (len == 0 || len == 256)
+            throw std::runtime_error("Invalid path");
+        memcpy(tmp, dir, len);
+        tmp[len] = '\0';
+
+        if (tmp[len - 1] == '/')
+            tmp[len - 1] = '\0';
+
+        if (stat(tmp, &sb) == 0 && S_ISDIR(sb.st_mode))
+            return;
+
+        for (p = tmp + 1; *p; p++)
+        {
+            if (*p == '/')
+            {
+                *p = 0;
+
+                if (stat(tmp, &sb) != 0)
+                {
+                    if (mkdir(tmp, S_IRWXU) < 0)
+                        throw std::runtime_error("Failed to create directory " + std::string(tmp));
+                    else if (!S_ISDIR(sb.st_mode))
+                        throw std::runtime_error("Path " + std::string(tmp) + " exists but is not a directory");
+                }
+
+                *p = '/';
+            }
+        }
+
+        if (stat(tmp, &sb) != 0 && mkdir(tmp, S_IRWXU) < 0)
+            throw std::runtime_error("Failed to create directory " + std::string(tmp));
+        else if (!S_ISDIR(sb.st_mode))
+            throw std::runtime_error("Path " + std::string(tmp) + " exists but is not a directory");
+    }
 }

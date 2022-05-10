@@ -7,9 +7,18 @@
 #include <Regex.hpp>
 #include <fcntl.h>
 
+static void check_necessary_configuration()
+{
+    DIR *dir = NULL;
+
+    dir = opendir("./tmp");
+    if (dir == NULL)
+        throw std::runtime_error("No such directory: ./tmp");
+    closedir(dir);
+}
+
 int main(int ac, char **av)
 {
-    // Ignore SIGPIPE signals
     signal(SIGPIPE, SIG_IGN);
 
     we::Config config;
@@ -24,7 +33,9 @@ int main(int ac, char **av)
         if (ac == 2)
             we::load_config(av[1], config);
         else
-            we::load_config("./conf/webserv.conf", config);
+            we::load_config("./conf/default.conf", config);
+
+        check_necessary_configuration();
 
         multiplexer = we::get_instance(config.multiplex_type);
         if (multiplexer == NULL)
@@ -75,3 +86,4 @@ int main(int ac, char **av)
         return 1;
     }
 }
+// TODO change message tmp

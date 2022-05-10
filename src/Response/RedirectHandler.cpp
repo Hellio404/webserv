@@ -19,7 +19,7 @@ namespace we
                 con->res_headers.insert(std::make_pair("Location", location));
                 con->res_headers.insert(std::make_pair("@response_code", "301"));
                 con->requested_resource = con->location->get_error_page(301);
-                con->keep_alive = false;
+                con->set_keep_alive(false);
 
                 return 1;
             }
@@ -40,7 +40,7 @@ namespace we
         con->res_headers.insert(std::make_pair("Location", location));
         con->res_headers.insert(std::make_pair("@response_code", we::to_string(con->location->return_code)));
         con->requested_resource = con->location->get_error_page(con->location->return_code);
-        con->keep_alive = false;
+        con->set_keep_alive(false);
 
         return 1;
     }

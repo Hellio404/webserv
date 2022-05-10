@@ -31,6 +31,13 @@ namespace we
             try
             {
                 std::string uploaded_file = we::get_file_fullpath(con->location->upload_dir, con->expanded_url);
+
+                if (uploaded_file[uploaded_file.size() - 1] == '/')
+                    throw std::runtime_error("Directory upload is not allowed");
+
+                std::string directories = uploaded_file.substr(0, uploaded_file.find_last_of('/'));
+                mkdir_recursive(directories.c_str());
+
                 con->body_handler->move_tmpfile(uploaded_file);
 
                 struct stat st;
@@ -39,6 +46,7 @@ namespace we
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("@response_code", "500"));
                     con->requested_resource = con->location->get_error_page(500);
+                    con->set_keep_alive(false);
                     return 1;
                 }
 
@@ -54,6 +62,7 @@ namespace we
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "500"));
                 con->requested_resource = con->location->get_error_page(500);
+                con->set_keep_alive(false);
                 return 1;
             }
         }
@@ -71,6 +80,7 @@ namespace we
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("@response_code", "404"));
                     con->requested_resource = con->location->get_error_page(404);
+                    con->set_keep_alive(false);
                     return 1;
                 }
                 else if (S_ISDIR(st.st_mode))
@@ -78,15 +88,17 @@ namespace we
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("@response_code", "403"));
                     con->requested_resource = con->location->get_error_page(403);
+                    con->set_keep_alive(false);
                     return 1;
                 }
 
-                fd = open(uploaded_file.c_str(), O_RDONLY);
+                fd = open(uploaded_file.c_str(), O_WRONLY);
                 if (fd == -1)
                 {
                     con->response_type = Connection::ResponseType_File;
                     con->res_headers.insert(std::make_pair("@response_code", "403"));
                     con->requested_resource = con->location->get_error_page(403);
+                    con->set_keep_alive(false);
                     return 1;
                 }
 
@@ -103,6 +115,7 @@ namespace we
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "500"));
                 con->requested_resource = con->location->get_error_page(500);
+                con->set_keep_alive(false);
                 return 1;
             }
         }

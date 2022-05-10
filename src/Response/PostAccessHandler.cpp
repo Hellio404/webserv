@@ -8,17 +8,26 @@ namespace we
         if (con->response_type == Connection::ResponseType_None)
         {
             struct stat st;
-            if (stat(con->requested_resource.c_str(), &st) != 0)
+            if (con->req_headers["@method"] != "GET" && con->req_headers["@method"] != "HEAD")
+            {
+                con->response_type = Connection::ResponseType_File;
+                con->res_headers.insert(std::make_pair("@response_code", "405"));
+                con->requested_resource = con->location->get_error_page(405);
+                con->set_keep_alive(false);
+            }
+            else if (stat(con->requested_resource.c_str(), &st) != 0)
             {
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "404"));
                 con->requested_resource = con->location->get_error_page(404);
+                con->set_keep_alive(false);
             }
             else
             {
                 con->response_type = Connection::ResponseType_File;
                 con->res_headers.insert(std::make_pair("@response_code", "403"));
                 con->requested_resource = con->location->get_error_page(403);
+                con->set_keep_alive(false);
             }
         }
 
@@ -36,7 +45,7 @@ namespace we
         }
 
         if (con->res_headers.find("@response_code")->second[0] >= '4')
-            con->keep_alive = false;
+            con->set_keep_alive(false);
 
         return 1;
     }
