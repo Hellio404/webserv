@@ -5,35 +5,7 @@ namespace we
 {
     bool LessCaseInsensitive::operator()(const std::string &lhs, const std::string &rhs) const
     {
-        return (lhs.size() < rhs.size() || (lhs.size() == rhs.size() &&
-                                            strcasecmp(lhs.c_str(), rhs.c_str()) < 0));
-    }
-    static clock_t start[256];
-    static float ids_time[256] = {0};
-    static const char *id_names[256] = {0};
-    static int counter[256] = {0};
-
-    void start_recording(unsigned char id, const char *name)
-    {
-        start[id] = clock();
-        if (id_names[id] == 0)
-            id_names[id] = name;
-        counter[id]++;
-    }
-
-    void stop_recording(unsigned char id)
-    {
-        ids_time[id] += (clock() - start[id]) / (float)(CLOCKS_PER_SEC / 1000);
-    }
-
-    // TODO: clear debugging functions
-    void print_ids_time()
-    {
-        for (int i = 0; i < 256; i++)
-        {
-            if (id_names[i] != 0)
-                printf("%s: %f ==> %d\n", id_names[i], ids_time[i], counter[i]);
-        }
+        return (lhs.size() < rhs.size() || (lhs.size() == rhs.size() && strcasecmp(lhs.c_str(), rhs.c_str()) < 0));
     }
 
     std::string::const_iterator find_first_not(std::string::const_iterator it, std::string::const_iterator end, const std::string &s)
@@ -109,8 +81,7 @@ namespace we
 
     bool is_protocol_supported(const std::string &protocol)
     {
-        const char *supported_protocols[] = {
-            "HTTP/1.1"};
+        const char *supported_protocols[] = {"HTTP/1.1"};
 
         for (size_t i = 0; i < sizeof(supported_protocols) / sizeof(supported_protocols[0]); ++i)
         {
@@ -123,8 +94,7 @@ namespace we
 
     bool is_method_supported(const std::string &method)
     {
-        const char *supported_methods[] = {
-            "GET", "POST", "HEAD", "PUT", "DELETE"};
+        const char *supported_methods[] = {"GET", "POST", "HEAD", "PUT", "DELETE"};
 
         for (size_t i = 0; i < sizeof(supported_methods) / sizeof(supported_methods[0]); ++i)
         {

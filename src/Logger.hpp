@@ -31,7 +31,7 @@ namespace we
         }
 
         void log(Connection *);
-        void error(Connection *, const std::string &);
+        void error(Connection *, const std::string &, const std::string &);
 
         void setAccessLog(std::string const &);
         void setErrorLog(std::string const &);

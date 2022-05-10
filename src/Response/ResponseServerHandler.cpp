@@ -24,7 +24,7 @@ namespace we
         }
         catch (const std::exception &e)
         {
-            we::Logger::get_instance().error(con, e.what());
+            we::Logger::get_instance().error(con, "error", e.what());
 
             con->response_type = Connection::ResponseType_File;
             con->res_headers.insert(std::make_pair("@response_code", "500"));

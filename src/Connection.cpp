@@ -1,4 +1,5 @@
 #include "Connection.hpp"
+#include "Logger.hpp"
 
 namespace we
 {
@@ -33,9 +34,10 @@ namespace we
 
     Connection::Connection(int connected_socket, EventLoop &loop, const Config &config, AMultiplexing &multiplexing) : config(config), multiplexing(multiplexing), loop(loop), client_header_parser(&this->req_headers, config.client_max_header_size)
     {
+        this->client_addr_len = sizeof(this->client_addr);
         this->client_sock = accept(connected_socket, (struct sockaddr *)&this->client_addr, &this->client_addr_len);
         if (this->client_sock == -1)
-            throw std::runtime_error("accept() failed"); // TODO: try catch when creating a connection
+            throw std::runtime_error("[critical] accept() failed");
         this->client_addr_str = inet_ntoa(reinterpret_cast<struct sockaddr_in *>(&this->client_addr)->sin_addr);
         this->event_data.pointer = this;
         this->connected_socket = connected_socket;
@@ -80,13 +82,6 @@ namespace we
         return Connection::connection_total;
     }
 
-    void Connection::print_headers()
-    {
-        std::map<std::string, std::string, we::LessCaseInsensitive>::const_iterator it;
-        for (it = this->req_headers.begin(); it != this->req_headers.end(); ++it)
-            std::cout << it->first << ": " << '\'' << it->second << '\'' << std::endl;
-    }
-
     void Connection::get_info_headers()
     {
         if (strcasecmp(this->req_headers["@protocol"].c_str(), "HTTP/1.0") == 0)
@@ -105,9 +100,9 @@ namespace we
         {
             this->client_content_length = atoll(this->req_headers["Content-Length"].c_str());
             if (this->client_content_length < 0)
-                throw we::HTTPStatusException(400, "");
+                throw we::HTTPStatusException(400, "Content-Length must be a positive number");
             if (size_t(this->client_content_length) > this->location->client_max_body_size)
-                throw we::HTTPStatusException(413, "");
+                throw we::HTTPStatusException(413, "Content-Length too large");
         }
     }
 
@@ -163,6 +158,8 @@ namespace we
             }
             catch (std::exception &e)
             {
+                we::Logger::get_instance().error(this, "error", e.what());
+
                 this->set_keep_alive(false);
                 this->server = this->config.get_server_block(this->connected_socket, this->req_headers["Host"]);
                 if (this->req_headers.count("@expanded_url") == 1)

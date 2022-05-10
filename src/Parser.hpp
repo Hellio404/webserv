@@ -37,7 +37,7 @@ namespace we
     {
         size_t                                                  parent_idx;
         std::string                                             name;
-        std::map <std::string,  std::vector<directive_data> >   directives;
+        std::map<std::string, std::vector<directive_data> >     directives;
         std::vector<std::string>                                args;
         std::string                                             path;
         unsigned int                                            line;
@@ -47,8 +47,8 @@ namespace we
     class Parser
     {
     private:
-        /* data */
-        struct file_info {
+        struct file_info
+        {
             std::fstream    *f;
             std::string     path;
             unsigned int    line_number;
@@ -56,14 +56,16 @@ namespace we
             file_info(std::string const&);
             ~file_info();
         };
+
         unsigned int                    file_level;
         std::fstream*                   file;
         std::stack<file_info*>          files;
+
     public:
         std::vector <directive_block>   blocks;
         Parser(std::string const &path);
         ~Parser();
-        unsigned int    level; // debug
+
         unsigned int    current_block;
         unsigned int    current_directive;
         char            next();
@@ -83,10 +85,7 @@ namespace we
 
         void            remove_file();
         void            add_file(std::string const &path);
-
-
     };
+
     void register_directive(std::string name, unsigned int num_args, unsigned int num_opt_args, bool allow_block, bool allow_duplicate, bool allow_in_root, bool allow_in_server, bool allow_in_location);
-
-
 }

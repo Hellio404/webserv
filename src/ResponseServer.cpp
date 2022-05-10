@@ -1,4 +1,5 @@
 #include "ResponseServer.hpp"
+#include <sys/errno.h>
 
 namespace we
 {
@@ -55,7 +56,7 @@ namespace we
     {
         HeaderMap::const_iterator resp_code = this->connection->res_headers.find("@response_code");
         if (resp_code == this->connection->res_headers.end())
-            throw we::HTTPStatusException(500, "Internal Server Error");
+            throw we::HTTPStatusException(500, "No response code found");
         else
             this->status_code = std::atoi(resp_code->second.c_str());
         this->str_status_code = resp_code->second;
@@ -117,7 +118,7 @@ namespace we
             return;
         }
         else if (!this->file.is_open())
-            throw we::HTTPStatusException(500, "Internal Server Error");
+            throw we::HTTPStatusException(500, "File \"" + con->requested_resource + "\" not found");
 
         con->res_headers.insert(std::make_pair("Content-Length", we::to_string(con->content_length)));
         con->res_headers.insert(std::make_pair("Content-Type", con->mime_type));
@@ -271,10 +272,8 @@ namespace we
             throw std::runtime_error("Cannot open " + this->dir_path);
 
         this->response_buffer = "<!doctype html><html><head>"
-                                "<title>Index of " +
-                                this->location + "</title></head>"
-                                                 "<h1>Index of " +
-                                this->location + "</h1><hr><pre>";
+                                "<title>Index of " + this->location + "</title></head>"
+                                "<h1>Index of " + this->location + "</h1><hr><pre>";
         do
         {
             if ((dp = readdir(dir)) == NULL)
@@ -382,13 +381,13 @@ namespace we
         {
             input_fd = open(connection->body_handler->get_filename().c_str(), O_RDONLY);
             if (input_fd == -1)
-                throw we::HTTPStatusException(500, "Internal Server Error");
+                throw we::HTTPStatusException(500, "Unable to open file \"" + connection->body_handler->get_filename() + "\"");
         }
         if (pipe(fds) == -1)
         {
             if (input_fd)
                 close(input_fd);
-            throw we::HTTPStatusException(500, "Internal Server Error");
+            throw we::HTTPStatusException(500, "Unable to create pipe for CGI " + std::string(strerror(errno)));
         }
         this->pid = fork();
         if (pid < 0)
@@ -397,7 +396,7 @@ namespace we
                 close(input_fd);
             close(fds[0]);
             close(fds[1]);
-            throw we::HTTPStatusException(500, "Internal Server Error");
+            throw we::HTTPStatusException(500, "Unable to fork CGI " + std::string(strerror(errno)));
         }
         if (pid == 0)
         {
@@ -527,6 +526,8 @@ namespace we
                     connection->res_headers.insert(std::make_pair("@CGI_Status", cgi_headers.find("Status")->second));
                     cgi_headers.erase("Status");
                 }
+
+                cgi_headers.erase("Content-Length");
 
                 connection->res_headers.insert(cgi_headers.begin(), cgi_headers.end());
                 header_buffer = make_response_header(connection->res_headers);

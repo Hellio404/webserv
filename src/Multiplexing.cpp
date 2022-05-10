@@ -184,9 +184,6 @@ namespace we
 
     void MultiplexingSelect::add(int fd, BaseConnection* data, WatchType type)
     {
-        // TODO: check if there is enough room for the new fd
-        // TODO: check if fd < 0
-
         assert(type != None && type != Error);
         switch (type)
         {
@@ -222,14 +219,15 @@ namespace we
     {
         if (ms_wait == -1)
             return this->wait();
+
         this->_next_fd = 0;
         this->_tmp_read_set = this->_read_set;
         this->_tmp_write_set = this->_write_set;
         struct timeval tv;
         tv.tv_sec = ms_wait / 1000;
         tv.tv_usec = (ms_wait % 1000) * 1000;
-        return select(this->_max_fd + 1, &this->_tmp_read_set, &this->_tmp_write_set, NULL, &tv);
 
+        return select(this->_max_fd + 1, &this->_tmp_read_set, &this->_tmp_write_set, NULL, &tv);
     }
 
     int MultiplexingSelect::get_next_fd()
@@ -291,11 +289,12 @@ namespace we
         default:
             break;
         }
-    // TODO: print to logger
+
     if (type == Config::MulNone)
         std::cerr << "no 'use_events' option specified in config file, defaulting to " << get_instance_name() << std::endl;
     else
         std::cerr << "unsupported 'use_events' option specified in config file, defaulting to " << get_instance_name() << std::endl;
+
     #if defined(HAVE_EPOLL)
         return new MultiplexingEpoll();
     #elif defined(HAVE_KQUEUE)

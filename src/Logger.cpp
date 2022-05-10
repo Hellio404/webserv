@@ -2,7 +2,7 @@
 
 namespace we
 {
-    Logger::Logger(): isAccessLogOpen(false), isErrorLogOpen(false)
+    Logger::Logger() : isAccessLogOpen(false), isErrorLogOpen(false)
     {
     }
 
@@ -33,17 +33,28 @@ namespace we
 
         this->accessLog << connection->client_addr_str
                         << " - - [" << this->prettyDateTime() << "] \""
-                        << connection->req_headers["@method"] << " " << connection->expanded_url << " HTTP/1.1"
+                        << connection->req_headers["@method"] << " " << connection->req_headers["@path"] << " " << connection->req_headers["@protocol"]
                         << "\" " << status_code << " " << bytes_sent << " \"" << http_referer << "\" \""
                         << http_user_agent << "\"" << std::endl;
     }
 
-    void Logger::error(Connection *connection, const std::string &message)
+    void Logger::error(Connection *connection, const std::string &level, const std::string &message)
     {
         if (this->isErrorLogOpen == false)
             return;
 
-        this->errorLog << message << " - - [" << connection->client_addr_str << "]" << std::endl;
+        this->errorLog << this->prettyDateTime() << " [" << level << "]: " << message;
+        if (connection != NULL)
+        {
+            this->errorLog << ", client: \"" << connection->client_addr_str << "\"";
+            if (connection->req_headers.count("@method") && connection->req_headers.count("@path") && connection->req_headers.count("@protocol"))
+                this->errorLog << ", request: \"" << connection->req_headers["@method"] << " " << connection->req_headers["@path"] << " " << connection->req_headers["@protocol"] << "\"";
+            if (connection->res_headers.count("Host"))
+                this->errorLog << ", host: \"" << connection->req_headers["Host"] << "\"";
+            if (connection->server != NULL)
+                this->errorLog << ", server: \"" << connection->server->server_names.front() << "\"";
+        }
+        this->errorLog << std::endl;
     }
 
     void Logger::setAccessLog(std::string const &path)

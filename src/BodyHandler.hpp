@@ -32,5 +32,4 @@ namespace we
         bool                add_data(const char *, const char *);
         const std::string   &get_filename();
     };
-
-} // namespace we
+}

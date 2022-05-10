@@ -59,9 +59,6 @@ namespace we
             ResponseType_CGI
         };
 
-        // checkers for if body is expected after headers and if it's chucked or not
-
-        // remaining data after end of headers
         std::vector<std::pair<ull, ull> >                                   ranges;
 
         std::string                                                         client_remaining_data;
@@ -142,7 +139,6 @@ namespace we
         std::string dedote_path(const std::string &);
         char        *skip_crlf(char *ptr, char*end);
         bool        end_of_headers(std::string::const_iterator start, std::string::const_iterator end);
-        void        print_headers();
         void        process_handlers();
         bool        process_file_for_response();
         void        get_info_headers();
