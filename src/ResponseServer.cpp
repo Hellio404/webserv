@@ -596,6 +596,7 @@ namespace we
             kill(this->pid, SIGKILL);
         waitpid(this->pid, NULL, 0);
         this->connection->multiplexing.remove(fds[0]);
+        this->connection->response_server = NULL;
         close(fds[0]);
         if (this->event)
             this->connection->loop.remove_event(*this->event);

@@ -234,7 +234,7 @@ namespace we
             throw std::runtime_error("client_header_timeout must be greater than 0");
         if (config.client_max_header_size <= 0)
             throw std::runtime_error("client_max_header_size must be greater than 0");
-        if (config.client_header_buffer_size <= 0 || config.client_header_buffer_size > config.client_max_header_size || config.client_header_buffer_size > MAX_BUFFER_SIZE)
+        if (config.client_header_buffer_size <= 0 || config.client_header_buffer_size > MAX_BUFFER_SIZE)
             throw std::runtime_error("client_header_buffer_size invalid size for the buffer");
     }
 
@@ -248,7 +248,7 @@ namespace we
                 throw std::runtime_error("client_body_timeout must be greater than 0");
             if (lb_it->client_max_body_size <= 0)
                 throw std::runtime_error("client_max_body_size must be greater than 0");
-            if (lb_it->client_body_buffer_size <= 0 || lb_it->client_body_buffer_size > lb_it->client_max_body_size || lb_it->client_body_buffer_size > MAX_BUFFER_SIZE)
+            if (lb_it->client_body_buffer_size <= 0 || lb_it->client_body_buffer_size > MAX_BUFFER_SIZE)
                 throw std::runtime_error("client_body_buffer_size invalid size for the buffer");
             
 
