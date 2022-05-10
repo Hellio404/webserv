@@ -527,6 +527,8 @@ namespace we
                     cgi_headers.erase("Status");
                 }
 
+                cgi_headers.erase("Content-Length");
+
                 connection->res_headers.insert(cgi_headers.begin(), cgi_headers.end());
                 header_buffer = make_response_header(connection->res_headers);
                 if (s.size())
