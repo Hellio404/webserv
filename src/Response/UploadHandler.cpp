@@ -26,7 +26,7 @@ namespace we
         if (con->response_type != Connection::ResponseType_None)
             return 0;
 
-        if (con->req_headers["@method"] == "PUT" && con->location->allow_upload)
+        if (con->req_headers["@method"] == "PUT" && con->location->allow_upload && con->body_handler)
         {
             try
             {
