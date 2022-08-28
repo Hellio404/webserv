@@ -37,6 +37,7 @@ namespace we
         this->last_read_bytes = 0;
         if (size_t(this->buffer_offset) >= this->internal_buffer.size())
         {
+            this->internal_buffer.clear();
             if (this->ended == true)
             {
                 ended = true;
@@ -217,7 +218,7 @@ namespace we
                 }
                 continue;
             }
-            to_copy = std::min((unsigned long long)len, this->current_range->second - this->current_range->first);
+            to_copy = std::min((unsigned long long)len, this->current_range->second - this->current_range->first + 1);
 
             this->file.seekg(this->current_range->first, std::ios::beg);
             this->file.read(this->_buffer, to_copy);
@@ -330,9 +331,9 @@ namespace we
             throw std::runtime_error("Unable to open file");
 
         this->range = con->ranges[0];
-        std::string content_range = "bytes " + we::to_string(this->range.first) + "-" + we::to_string(this->range.second - 1) + "/" + we::to_string(con->content_length);
+        std::string content_range = "bytes " + we::to_string(this->range.first) + "-" + we::to_string(this->range.second) + "/" + we::to_string(con->content_length);
         con->res_headers.insert(std::make_pair("Content-Range", content_range));
-        con->res_headers.insert(std::make_pair("Content-Length", we::to_string(this->range.second - this->range.first)));
+        con->res_headers.insert(std::make_pair("Content-Length", we::to_string(this->range.second - this->range.first + 1)));
         con->res_headers.insert(std::make_pair("Content-Type", con->mime_type));
         try
         {
